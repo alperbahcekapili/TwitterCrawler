@@ -1,0 +1,9 @@
+name: twittercrawler
+dependencies:
+  -numpy=1.20.3
+  -pandas=1.3.4
+  -plotly=5.8.2
+  -requests=2.28.0
+  -streamlit=1.11.0
+  -streamlit_tags=1.2.8
+  -tweepy=4.10.0
