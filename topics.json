@@ -1,0 +1,60 @@
+{
+    "topics":[
+
+        {
+            "name":"eng_corona",
+            "keywords":["covid", "corona", "vaccine", 
+            "pfizer", "astrazeneca", "moderna",    
+            "sinovac", "biontech" ]
+        },
+
+        {
+            "name":"tr_corona",
+            "keywords":["kovid", "korona", "aşı", "asi", "covid", "corona", "vaccine", 
+            "pfizer", "astrazeneca", "moderna", 
+            "sinovac", "biontech" ,"turkovac", "salgin", "pandemi", "salgın"]
+        },
+        {
+            "name":"eng_refugee",
+            "keywords":["immigrant", "refugee"]
+        },
+        {
+            "name":"tr_refugee",
+            "keywords":["göçmen", "gocmen","mülteci","multeci"]
+        },
+        {
+            "name":"bim",
+            "keywords":["bim"]
+        },{
+            "name":"ebebek",
+            "keywords":["ebebek"]
+        },
+        {
+            "name":"a101",
+            "keywords":["a101"]
+        },
+        {
+            "name":"lokman",
+            "keywords":["lokman hekim"]
+        },{
+            "name":"migros",
+            "keywords":["migros"]
+        },{
+            "name":"siyaset",
+            "keywords":[ "akp","akparti",
+            "chp", "mhp","deva","hdp",
+            "iyi parti","gelecek partisi",
+            "ittifak","ittifağı",
+            "ittifagi","babacan",
+            "kılıçdaroğlu","bahçeli",
+            "akşener","erdoğan",
+            "davutoğlu","erdogan",
+            "kilicdaroglu","bahceli",
+            "aksener","davutoglu",
+            "buldan","sancar",
+            "imamoğlu","imamoglu",
+            "mansur"]
+        }
+
+    ]
+}
