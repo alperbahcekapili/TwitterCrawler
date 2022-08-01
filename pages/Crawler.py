@@ -1,3 +1,4 @@
+import base64
 import streamlit as st
 from streamlit_tags import st_tags
 
@@ -343,3 +344,9 @@ if col1.button('Start Crawling'):
 
 
 
+filename = "deneme"
+b64 = base64.b64encode("alper".encode()).decode()
+href = f'<a href="data:file/zip;base64,{b64}" download=\'{filename}.zip\'>\
+    Click to download\
+</a>'
+st.sidebar.markdown(href, unsafe_allow_html=True)
