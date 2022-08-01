@@ -376,7 +376,7 @@ def preprocess_general_dump(json_obj, dump_file_path):
     from datetime import datetime
     now = str(datetime.now())
 
-
+    now = os.path.join("data", now)
 
 
     for topic in main_texts:
