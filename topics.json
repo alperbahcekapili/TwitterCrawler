@@ -1,44 +1,53 @@
-{
-    "topics":[
+[
 
         {
-            "name":"eng_corona",
+            "name":"corona",
             "keywords":["covid", "corona", "vaccine", 
             "pfizer", "astrazeneca", "moderna",    
-            "sinovac", "biontech" ]
+            "sinovac", "biontech" ],
+            "lang": "eng"
         },
 
         {
-            "name":"tr_corona",
+            "name":"corona",
             "keywords":["kovid", "korona", "aşı", "asi", "covid", "corona", "vaccine", 
             "pfizer", "astrazeneca", "moderna", 
-            "sinovac", "biontech" ,"turkovac", "salgin", "pandemi", "salgın"]
+            "sinovac", "biontech" ,"turkovac", "salgin", "pandemi", "salgın"],
+            "lang": "tr"
         },
         {
-            "name":"eng_refugee",
-            "keywords":["immigrant", "refugee"]
+            "name":"refugee",
+            "keywords":["immigrant", "refugee"],
+            "lang":"eng"
         },
         {
-            "name":"tr_refugee",
-            "keywords":["göçmen", "gocmen","mülteci","multeci"]
+            "name":"refugee",
+            "keywords":["göçmen", "gocmen","mülteci","multeci"],
+            "lang": "tr"
         },
         {
             "name":"bim",
-            "keywords":["bim"]
+            "keywords":["bim"],
+            "lang": "tr"
         },{
             "name":"ebebek",
-            "keywords":["ebebek"]
+            "keywords":["ebebek"],
+            "lang": "tr"
+            
         },
         {
             "name":"a101",
-            "keywords":["a101"]
+            "keywords":["a101"],
+            "lang": "tr"
         },
         {
             "name":"lokman",
-            "keywords":["lokman hekim"]
+            "keywords":["lokman hekim"],
+            "lang": "tr"
         },{
             "name":"migros",
-            "keywords":["migros"]
+            "keywords":["migros"],
+            "lang": "tr"
         },{
             "name":"siyaset",
             "keywords":[ "akp","akparti",
@@ -53,8 +62,8 @@
             "aksener","davutoglu",
             "buldan","sancar",
             "imamoğlu","imamoglu",
-            "mansur"]
+            "mansur"],
+            "lang": "tr"
         }
 
     ]
-}

@@ -7,55 +7,19 @@ import tweepy
 import datetime
 from datetime import timedelta
 from datetime import datetime
-
-import asyncio
-
-
 import time
-
-
-import threading
-
-
 import requests
 import os
 import json
 
-from pages.Preprocess import preprocess_tweet
+from pages.Preprocess import preprocess_downloaded
 
 
 
 
 
-# [11:01, 21.06.2022] Başak: Ao71uECbsKVhTDAlfCQlDwH9D
-# [11:01, 21.06.2022] Başak: Api key
-# [11:02, 21.06.2022] Başak: BXkLLCSiTWVdEXnEpRXsTBRGhaPauWGCS6UnOMnTwRMVS8NsWl
-# [11:02, 21.06.2022] Başak: Api key secret
-# [11:02, 21.06.2022] Başak: 784850369008529409-jvv6oMyYOJErcanHHdAs8hZCVO2BtOb
-# [11:02, 21.06.2022] Başak: Access token
-# [11:02, 21.06.2022] Başak: OrcSpI3rh7D8P5SlY8wSIvX2BkXqfVhqgBt2ttSzRP6ip
-# [11:02, 21.06.2022] Başak: Access token secret
 
 
-# Your app's API/consumer key and secret can be found under the Consumer Keys
-# section of the Keys and Tokens tab of your app, under the
-# Twitter Developer Portal Projects & Apps page at
-# https://developer.twitter.com/en/portal/projects-and-apps
-consumer_key = "Ao71uECbsKVhTDAlfCQlDwH9D"
-consumer_secret = "BXkLLCSiTWVdEXnEpRXsTBRGhaPauWGCS6UnOMnTwRMVS8NsWl"
-
-# Your account's (the app owner's account's) access token and secret for your
-# app can be found under the Authentication Tokens section of the
-# Keys and Tokens tab of your app, under the
-# Twitter Developer Portal Projects & Apps page at
-# https://developer.twitter.com/en/portal/projects-and-apps
-access_token = "784850369008529409-jvv6oMyYOJErcanHHdAs8hZCVO2BtOb"
-access_token_secret = "OrcSpI3rh7D8P5SlY8wSIvX2BkXqfVhqgBt2ttSzRP6ip"
-
-
-
-
-#bearer: AAAAAAAAAAAAAAAAAAAAAOHnPAEAAAAAPZ%2BKn6G2Zgb8Cfl56hsrJGkJx2M%3DLUW0gjczHHNdlbz4KWcv22ZWxmmI0491QG87R0MKaJM3ayOz1q
 
 #curl --get 'https://api.twitter.com/1.1/search/tweets.json' --data '&q=%23archaeology' -H "Authorization: Bearer AAAAAAAAAAAAAAAAAAAAAOHnPAEAAAAAPZ%2BKn6G2Zgb8Cfl56hsrJGkJx2M%3DLUW0gjczHHNdlbz4KWcv22ZWxmmI0491QG87R0MKaJM3ayOz1q"
 
@@ -85,7 +49,6 @@ def thread_function(topics):
     while True:
 
         if not started:
-            st.w
             break
 
 
@@ -98,7 +61,8 @@ def thread_function(topics):
         mydir = os.path.join(os.getcwd(), file_prefix , datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
         file_prefix = os.path.join(file_prefix, mydir)
-        os.makedirs(file_prefix)
+        if not os.path.exists(file_prefix):
+            os.makedirs(file_prefix)
         # create folder for given time
 
         
@@ -131,11 +95,6 @@ def thread_function(topics):
             errors = resp[2]
             meta = resp[3]
 
-            
-
-            
-            
-
             # user bio, location, user_created_time, takipci vb., tweet in zamani, quote?, resource(telefon mu)
             # retweet mi? kiminkini, quotation mu? kiminki ve hangi tweet
             # kullanici verified mi? 
@@ -143,41 +102,39 @@ def thread_function(topics):
             dumps = []
 
             for tweet in data:
-
-                temp = {}
-
+                
+                
+                temp = preprocess_downloaded(tweet)
                 user_found = False
-
+                #st.write()
                 for i in range(max_count):
-
+                    
                     temp["user"] = {}
                     if includes["users"][i]["id"] == tweet["author_id"]:
 
                         user_found = True
 
-                        temp["user"]["bio"] = includes["users"][i]["description"]
-                        temp["user"]["created_time"] = includes["users"][i]["created_at"]
-                        #temp["user_public_metrics"] = includes["users"][i]["user_public_metrics"]
+                        temp["user"]["description"] = includes["users"][i]["description"]
+                        temp["user"]["created_at"] = includes["users"][i]["created_at"]
+                        temp["user"]["followers_count"] = includes["users"][i]["public_metrics"]["followers_count"]
                         temp["user"]["verified"] = includes["users"][i]["verified"]
                         temp["user"]["location"] = includes["users"][i]["location"]
                         temp["user"]["id"] = includes["users"][i]["id"]
-                        temp["user"]["username"] = includes["users"][i]["username"]
+                        temp["user"]["screen_name"] = includes["users"][i]["username"]
                         break
                     
                 if not user_found:
                     crawler_message.text( f"!!!Author has not been found in users for author id: {tweet['author_id']}!!!")
                     
-
-                    
-
-                temp["tweet"] = preprocess_tweet(tweet)
                 
                 dumps.append(temp)
 
+            with open(os.path.join(file_prefix, topic+".twitter_crawler"), "w", encoding='utf8') as json_file:
+                out_str = json.dumps(dumps, ensure_ascii=False, default=str)
+                out_str = out_str[1:-1]
+                out_str = out_str.replace("}, ", "}\n")
+                json_file.write(out_str)
 
-
-            with open(os.path.join(file_prefix, topic+".json"), "w", encoding='utf8') as json_file:
-                json.dump(dumps, json_file, ensure_ascii=False, default=str)
 
             crawler_message.caption( f"file saved to {mydir}/{topic}")
 
@@ -196,21 +153,30 @@ def thread_function(topics):
 
 
 
+st.header("Please fill needed fields...")
 
 
+isDevelopment = st.text_input("Are you developer?")
 
 
+consumer_key = st.empty()
+consumer_secret = st.empty()
+access_token = st.empty()
+access_token_secret = st.empty()
 
 
-
-
-
-
-
-
-
-
-
+if(isDevelopment != "AlperTheDeveloper" and isDevelopment != "") : 
+    consumer_key = st.text_input("consumer_key")
+    consumer_secret = st.text_input("consumer_secret")
+    access_token = st.text_input("access_token")
+    access_token_secret = st.text_input("access_token_secret")
+else:
+    secrets = json.load(open("secrets.json", "r"))
+    access_token_secret = secrets["access_token_secret"]
+    access_token = secrets["access_token"]
+    consumer_key = secrets["consumer_key"]
+    consumer_secret = secrets["consumer_secret"]
+    del(secrets)
 
 
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
@@ -238,22 +204,6 @@ topics = st_tags(
 
 max_count = st.number_input('Max results in one seach(100 max)', 10)
 
-
-
-# start = st.date_input(
-#      "Start Date",
-#      datetime.date(2019, 7, 6))
-# st.write('Start date:', start)
-
-
-# end = st.date_input(
-#      "End Date",
-#      datetime.date(2019, 7, 23))
-# st.write('End date:', end)
-
-
-
-
 started = False
 crawler_status = st.empty()
 crawler_message = st.empty()
@@ -269,13 +219,7 @@ if col2.button("Stop Crawling"):
         started = False
 
 
-
-
 if col1.button('Start Crawling'):
-    # Search Recent Tweets
-
-    # This endpoint/method returns Tweets from the last seven days
-
     if started: 
         crawler_message.text( "Crawler is already active!!!")
     else:
@@ -284,69 +228,8 @@ if col1.button('Start Crawling'):
         thread_function(topics)
 
 
-
-    
-
-                    
-
-        
-                
-
-
-
-    # st.write(str(tweets))
-    # file.write(str(tweets))
-    # file.close()
-    # os.chdir("..")
-
-
-
-
-        # By default, this endpoint/method returns 10 results
-        # You can retrieve up to 100 Tweets by specifying max_results
-
-
-
         # user bio, location, user_created_time, takipci vb., tweet in zamani, quote?, resource(telefon mu)
         # retweet mi? kiminkini, quotation mu? kiminki ve hangi tweet
         # kullanici verified mi? 
 
 
-
-
-
-
-    
-
-
-
-# st.write("Download the crawled tweet. dowload demo")
-
-
-# @st.cache
-# def convert_df():
-#     df = pd.read_csv("dir/file.csv")    
-#     return df.to_csv().encode('utf-8')
-
-
-# csv = ""
-
-
-# st.download_button(
-#    "Press to Download",
-#    csv,
-#    "file.csv",
-#    "text/csv",
-#    key='download-csv'
-# )
-
-
-
-
-
-filename = "deneme"
-b64 = base64.b64encode("alper".encode()).decode()
-href = f'<a href="data:file/zip;base64,{b64}" download=\'{filename}.zip\'>\
-    Click to download\
-</a>'
-st.sidebar.markdown(href, unsafe_allow_html=True)
