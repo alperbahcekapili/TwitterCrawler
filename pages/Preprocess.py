@@ -15,7 +15,9 @@ import time
 from multiprocessing import Process, Queue
 from multiprocessing import SimpleQueue
 
- 
+
+st.set_page_config(page_title="Preprocess", page_icon=None, layout="wide", initial_sidebar_state="auto", menu_items=None)
+
 # adding Folder_2 to the system path
 sys.path.insert(0, os.path.join(os.getcwd(), '/Preprocess_scripts'))
 
@@ -174,6 +176,7 @@ def preprocess_downloaded(tweet):
     tweet_dict["text"] = preprocess_text(tweet["text"])
     tweet_dict["id"] = remove_new_lines(tweet["id"])
     tweet_dict["source"] = remove_new_lines(tweet["source"])
+    tweet_dict["lang"] = remove_new_lines(tweet["lang"])
 
 
     return tweet_dict
@@ -235,9 +238,17 @@ if json_file_path:
     if dump_file_path:
         preprocess_status = st.empty()
         max_mem = st.number_input("Maximum memory available",10)
-        start_preprocess = st.button("Start Preprocess")
-        stop_preprocess = st.button("Stop Preprocess")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            start_preprocess = st.button("Start Preprocess")
+        with col2:
+            stop_preprocess = st.button("Stop Preprocess")
+        with col3:
+            recieve_stats = st.button("Get Statistics")
+
         st.session_state["stop_preprocessing"] = False
+
 
         if stop_preprocess:
             start_preprocess = False
@@ -254,12 +265,15 @@ if json_file_path:
             st.session_state["preprocess_process"] =  Process(target=PreprocessDump, args=(json_file_path, dump_file_path, max_mem, st.session_state["task_queue"] , st.session_state["stats_queue"] ))
             st.session_state["preprocess_process"].start()
 
+        stat_view = st.empty()
 
-        recieve_stats = st.button("Get Statistics")
         if recieve_stats:
-            st.session_state["task_queue"].put(("Topic", "Language"), block=True)
-            response = st.session_state["stats_queue"].get(block=True)
-            st.write(f"Total count preprocessed with this query: {response}")
+            while not stop_preprocess:
+                with stat_view.container():
+                    st.session_state["task_queue"].put(("Topic", "Language"), block=True)
+                    response = st.session_state["stats_queue"].get(block=True)
+                    st.dataframe(response)
+                    time.sleep(1)
 
 
 

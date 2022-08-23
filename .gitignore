@@ -6,3 +6,5 @@ secrets.json
 /pages/Preprocess/tweets_dump_csv
 tweets_dump_csv/
 /pages/Preprocess_scripts/__pycache__
+**/__pycache__/
+/pages/__pycache__/

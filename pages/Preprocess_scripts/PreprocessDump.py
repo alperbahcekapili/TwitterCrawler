@@ -15,6 +15,23 @@ class PreprocessDump:
     stat_file = "stats"
 
 
+    def create_counts_df(self, tweets):
+
+        col_list = []
+        counts = []
+
+        
+        for key1 in tweets: 
+            for key2 in tweets[key1]:
+                col_list.append((key1, key2))
+                counts.append(len(tweets[key1][key2]))
+
+        to_ret =  pd.DataFrame(data=[counts], index=["tweet_counts"])
+        to_ret.columns =pd.MultiIndex.from_tuples(col_list)
+        return to_ret
+
+        
+
     def clear_dictionary(self, tweets):
         for key1 in tweets:
             for key2 in tweets[key1]:
@@ -132,35 +149,7 @@ class PreprocessDump:
         
         
 
-        
-    def save_dictionary(self ,tweets, output_folder):
-        for key1 in tweets:
-            for key2 in tweets[key1]:
-                out_file = os.path.join(output_folder)
-                if not os.path.exists(out_file):
-                    os.makedirs(out_file)
-
-                out_file = os.path.join(output_folder, key1)
-                if not os.path.exists(out_file):
-                    os.makedirs(out_file)
-
-                out_file = os.path.join(output_folder, key1, key2)
-                if not os.path.exists(out_file):
-                    os.makedirs(out_file)
-
-
-                current_time = datetime.now()
-                out_file = os.path.join(output_folder, key1, key2, str(current_time))
-                
-                try:
-                    tweets[key1][key2].to_csv(out_file+ ".csv", index = False)
-                except Exception as e:
-                    print(e)
-                    # this means this entry has no been initialize in this batch
-                    pass
-
-        self.clear_dictionary(tweets)
-
+   
 
     def preprocess_file(self, topics_json ,file_path, output_folder, max_size):
         # need this parameter
@@ -187,9 +176,9 @@ class PreprocessDump:
                 try:
                     if not self.stats_query_queue.empty():
                         query = self.stats_query_queue.get(block=False)
-                        self.stats_response_queue.put(f"You sent {total_tweet_counter}", block=False)
+                        self.stats_response_queue.put(self.create_counts_df(topic_to_buffer), block=False)
                 except Exception as e :
-                    file = open("Sa", "w")
+                    file = open("ErrorFile", "w")
                     file.write(str(e))
                     file.close()
 
