@@ -64,6 +64,12 @@
             "imamoğlu","imamoglu",
             "mansur"],
             "lang": "tr"
+        },
+        {
+            "name":"kyk yurtları",
+            "keywords":["kyk", "yurt"],
+            "lang": "tr"
         }
+
 
     ]
