@@ -8,3 +8,5 @@ tweets_dump_csv/
 /pages/Preprocess_scripts/__pycache__
 **/__pycache__/
 /pages/__pycache__/
+Updated_Locations.csv
+sample_location.abs
