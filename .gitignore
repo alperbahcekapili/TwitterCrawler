@@ -10,3 +10,5 @@ tweets_dump_csv/
 /pages/__pycache__/
 Updated_Locations.csv
 sample_location.abs
+Updated_Locations.csv
+only_detected.csv
