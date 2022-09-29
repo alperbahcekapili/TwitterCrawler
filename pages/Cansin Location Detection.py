@@ -26,11 +26,14 @@ if csv_root_path and abrs_file_path:
     sleep(3)
 
     updated_indexes = []
+    will_break = False
 
     while True: 
 
-        if no_resp_count > 500:
+        if will_break:
             break
+        
+        
 
         
         sleep(0.001)
@@ -41,6 +44,9 @@ if csv_root_path and abrs_file_path:
             response = st.session_state["stats_queue"].get(block=True, timeout=1)
             if "updated_indexes" in response.keys():
                 updated_indexes = response["updated_indexes"]
+
+            if "break" in response.keys():
+                will_break = True
             no_resp_count = 0
             with stat_view.container():
                 
@@ -64,4 +70,4 @@ if csv_root_path and abrs_file_path:
     if updated_indexes != []:
         updated_loc = pd.read_csv("only_detected.csv", lineterminator="\n")
         st.dataframe(updated_loc)
-            
+

@@ -195,9 +195,12 @@ class Cansin_Location_Detector:
         # generated all base locations
         # now we should parse tweets to see if we can find locations of users
 
-        
+        file_index = 0
 
         for file_path in file_list:
+
+            file_index+=1
+
             # do detection
             # set stats
 
@@ -226,7 +229,8 @@ class Cansin_Location_Detector:
             stats = {
                 "total_users": self.detected_users + self.undetected_users,
                 "detected_users": self.detected_users,
-                "detection_rate": self.detection_rate 
+                "detection_rate": self.detection_rate ,
+                "progress:": f"{file_index}/{len(file_list)}"
             }
 
 
@@ -234,7 +238,23 @@ class Cansin_Location_Detector:
         
 
 
+
+
+
+
+        stats = {
+                "total_users": self.detected_users + self.undetected_users,
+                "detected_users": self.detected_users,
+                "detection_rate": self.detection_rate,
+                "updated_indexes": self.updated_indexes,
+                "break": True
+        }
+
+
+        self.comm_queue.put(stats)
+
         
+
         user_loc_dict = {
             "userid": self.users,
             "userloc": self.locations
@@ -253,17 +273,7 @@ class Cansin_Location_Detector:
 
 
 
-        stats = {
-                "total_users": self.detected_users + self.undetected_users,
-                "detected_users": self.detected_users,
-                "detection_rate": self.detection_rate,
-                "updated_indexes": self.updated_indexes
-        }
-
-
-
-
-        self.comm_queue.put(stats)
+       
 
         
 

@@ -12,3 +12,6 @@ Updated_Locations.csv
 sample_location.abs
 Updated_Locations.csv
 only_detected.csv
+sample_stance
+stance-stats.json
+stance-users.json
