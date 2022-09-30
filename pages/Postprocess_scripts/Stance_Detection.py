@@ -215,8 +215,8 @@ class StanceDetection:
         iteration = 0
 
         # start iterations
-        changed_users = 11
-        while(changed_users > 10):
+        changed_users = 1001
+        while(changed_users > 1000):
 
             print(f"Starting iteration number: {iteration}")
             iteration+=1
