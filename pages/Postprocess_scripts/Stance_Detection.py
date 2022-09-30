@@ -95,6 +95,9 @@ class StanceDetection:
                 self.retweeted[temp_index].append(referred_user)
 
 
+
+        json.dump({"users": self.users, "users_retweeted": self.retweeted}  ,open("retweets-users.json", "w"))
+
     def one_iteration(self):
         # iterate through all users and change immedietly if needed
 
@@ -221,7 +224,7 @@ class StanceDetection:
 
 
             json.dump(self.stance_user_dict, open(f"it{iteration}-stance-users.json", "w"))
-            json.dump(self.stance_stats, open("it{iteration}-stance-stats.json" , "w"))
+            json.dump(self.stance_stats, open(f"it{iteration}-stance-stats.json" , "w"))
 
 
 
