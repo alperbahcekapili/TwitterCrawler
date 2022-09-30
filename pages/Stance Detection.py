@@ -34,12 +34,20 @@ if file_path:
 
 
     st.write(stances)
-    tweets_file_path =  st.text_input("Please provide the root folder that contains processed csv's")
+
+    preexisting_retweet_user_dict = st.selectbox("I have preexisting user retweets dictionary", ["Yes", "No"])
+    
+    if preexisting_retweet_user_dict == "No":
+        tweets_file_path =  st.text_input("Please provide the root folder that contains processed csv's")
+    elif preexisting_retweet_user_dict == "Yes":
+        tweets_file_path =  st.text_input("Please provide the dictionary file")
+
+
     
     if tweets_file_path:
         st.info("Starting Process...")
         st.session_state["stats_queue"] = Queue(1000)
-        st.session_state["preprocess_process"] =  Process(target=StanceDetection, args=(tweets_file_path, stances, st.session_state["stats_queue"] ))
+        st.session_state["preprocess_process"] =  Process(target=StanceDetection, args=(tweets_file_path, stances, st.session_state["stats_queue"], preexisting_retweet_user_dict == "Yes" ))
         st.session_state["preprocess_process"].start()
 
 

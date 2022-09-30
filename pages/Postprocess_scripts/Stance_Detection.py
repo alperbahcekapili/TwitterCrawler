@@ -158,13 +158,27 @@ class StanceDetection:
                 # change older state if was not already onknown
                 if current_stance != "Unknown":
                     self.stance_user_dict[current_stance].remove(self.users[i])
-                    self.label[i] = "Uknown"
+                    self.label[i] = "Unknown"
 
         return changed_users
 
+    def load_preexisting_dict(self, dict_path):
+        user_retweets =  json.load(open(dict_path, "r"))
+        self.users = user_retweets["users"]
+        self.retweeted = user_retweets["users_retweeted"]
+        self.label = ["Unknown" for i in range(len(self.users))]
 
+        # set master users
 
-    def __init__(self, csv_root_path, stances_object, comm_queue):
+        for stance in self.stances.keys():
+            self.stance_stats[stance] = 0
+            self.stance_user_dict[stance] = set()
+
+            for username in self.stances[stance]:
+                self.stance_user_dict[stance].add(username)
+                self.label[self.users.index(username)] = stance
+
+    def __init__(self, csv_root_path, stances_object, comm_queue, from_preexisting):
         self.comm_queue = comm_queue
         self.stances = stances_object
 
@@ -172,36 +186,41 @@ class StanceDetection:
         self.stance_stats = {}
         
 
-        # add master users to the list
-        for stance in self.stances.keys():
-            self.stance_stats[stance] = 0
-            self.stance_user_dict[stance] = set()
-
-            for username in self.stances[stance]:
-                self.stance_user_dict[stance].add(username)
-                self.users.append(username)
-                self.retweeted.append([])
-                self.label.append(stance)
         
-
-        all_files = self.get_to_be_processed_files(csv_root_path)
-
-        for file_path in all_files:
-
-            self.extract_users_retweets(pd.read_csv(file_path, lineterminator="\n"))
-            self.comm_queue.put({"retweeted_user":len(self.users)})
-
         
-        self.comm_queue.put({"retweeted_user":len(self.users), "break":True})
+        if not from_preexisting:
+            # add master users to the list
+            for stance in self.stances.keys():
+                self.stance_stats[stance] = 0
+                self.stance_user_dict[stance] = set()
+
+                for username in self.stances[stance]:
+                    self.stance_user_dict[stance].add(username)
+                    self.users.append(username)
+                    self.retweeted.append([])
+                    self.label.append(stance)
+            all_files = self.get_to_be_processed_files(csv_root_path)
+
+            for file_path in all_files:
+
+                self.extract_users_retweets(pd.read_csv(file_path, lineterminator="\n"))
+                self.comm_queue.put({"retweeted_user":len(self.users)})
+
+            
+            self.comm_queue.put({"retweeted_user":len(self.users), "break":True})
 
         # parse all to get retweeted lists
+        else:
+            # this parameter can be changed. it is not csv root path in this case
+            print("Loading from preexisting user-retweeted_users json file ")
+            self.load_preexisting_dict(csv_root_path)
+            self.comm_queue.put({"retweeted_user":len(self.users), "break":True})
 
-        
         iteration = 0
 
         # start iterations
-        changed_users = 10001
-        while(changed_users > 10000):
+        changed_users = 1001
+        while(changed_users > 1000):
             print(f"Starting iteration number: {iteration}")
             iteration+=1
             print("Start time: ", datetime.now())    
@@ -211,11 +230,11 @@ class StanceDetection:
             print("Total stance changes: ",changed_users)
         
 
-        
+            to_save_dict = {}
+
             for stance in self.stance_user_dict.keys():
                 print(f"User count for {stance} stance: {len(self.stance_user_dict[stance])}")
-                self.stance_user_dict[stance] = list(self.stance_user_dict[stance])
-                
+                to_save_dict[stance] = list(self.stance_user_dict[stance])
                 self.stance_stats[stance]  = len(self.stance_user_dict[stance])
 
 
@@ -223,7 +242,7 @@ class StanceDetection:
 
 
 
-            json.dump(self.stance_user_dict, open(f"it{iteration}-stance-users.json", "w"))
+            json.dump(to_save_dict, open(f"it{iteration}-stance-users.json", "w"))
             json.dump(self.stance_stats, open(f"it{iteration}-stance-stats.json" , "w"))
 
 
