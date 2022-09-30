@@ -172,7 +172,14 @@ class StanceDetection:
 
             for username in self.stances[stance]:
                 self.stance_user_dict[stance].add(username)
-                self.label[self.users.index(username)] = stance
+                if username in self.users: 
+                    # if we crawled data for this person then we don need to add new user to existing users
+                    self.label[self.users.index(username)] = stance
+                else: 
+                    # if this person is not in our users then we should extend lists
+                    self.users.append(username)
+                    self.label.append(stance)
+                    self.retweeted.append([])
 
     def __init__(self, csv_root_path, stances_object, comm_queue, from_preexisting):
         self.comm_queue = comm_queue
