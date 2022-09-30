@@ -114,10 +114,6 @@ class StanceDetection:
             if self.is_master(self.users[i]) != False:
                 continue
 
-           
-
-
-
             # get current stance of that user
             current_stance = self.label[i]
 
@@ -150,10 +146,10 @@ class StanceDetection:
                 self.stance_user_dict[to_set_stance].add(self.users[i])
                 # set individual stance
                 self.label[i] = to_set_stance
+
+
             # then we should set label as unknown
-
-
-            else:
+            elif len(detected_stances) > 1:
 
                 # change older state if was not already onknown
                 if current_stance != "Unknown":
@@ -219,8 +215,9 @@ class StanceDetection:
         iteration = 0
 
         # start iterations
-        changed_users = 1001
-        while(changed_users > 1000):
+        changed_users = 11
+        while(changed_users > 10):
+
             print(f"Starting iteration number: {iteration}")
             iteration+=1
             print("Start time: ", datetime.now())    
@@ -228,7 +225,6 @@ class StanceDetection:
             changed_users = self.one_iteration()
             print("Epoch execution time: ", time.time() - start_time)
             print("Total stance changes: ",changed_users)
-        
 
             to_save_dict = {}
 
@@ -237,13 +233,12 @@ class StanceDetection:
                 to_save_dict[stance] = list(self.stance_user_dict[stance])
                 self.stance_stats[stance]  = len(self.stance_user_dict[stance])
 
+            dir = "iterations"
+            if not os.path.exists(dir):
+                os.makedirs(dir)
 
-
-
-
-
-            json.dump(to_save_dict, open(f"it{iteration}-stance-users.json", "w"))
-            json.dump(self.stance_stats, open(f"it{iteration}-stance-stats.json" , "w"))
+            json.dump(to_save_dict, open(os.path.join(dir,f"it{iteration}-stance-users.json"), "w"))
+            json.dump(self.stance_stats, open(os.path.join(dir,f"it{iteration}-stance-stats.json") , "w"))
 
 
 
