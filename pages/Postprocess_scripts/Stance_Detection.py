@@ -5,6 +5,8 @@ import redis
 import pandas as pd
 import json
 import copy
+from datetime import datetime
+import time
 
 class StanceDetection:
 
@@ -153,7 +155,7 @@ class StanceDetection:
                 # change older state if was not already onknown
                 if current_stance != "Unknown":
                     self.stance_user_dict[current_stance].remove(self.users[i])
-                    self.label[i] = "Uknonwn"
+                    self.label[i] = "Uknown"
 
         return changed_users
 
@@ -191,28 +193,35 @@ class StanceDetection:
 
         # parse all to get retweeted lists
 
+        
+        iteration = 0
 
         # start iterations
-        changed_users = 11
-        while(changed_users > 10):
+        changed_users = 10001
+        while(changed_users > 10000):
+            print(f"Starting iteration number: {iteration}")
+            iteration+=1
+            print("Start time: ", datetime.now())    
+            start_time = time.time()
             changed_users = self.one_iteration()
-            print(changed_users)
+            print("Epoch execution time: ", time.time() - start_time)
+            print("Total stance changes: ",changed_users)
         
 
         
-        for stance in self.stance_user_dict.keys():
-            print(f"User count for {stance} stance: {len(self.stance_user_dict[stance])}")
-            self.stance_user_dict[stance] = list(self.stance_user_dict[stance])
-            
-            self.stance_stats[stance]  = len(self.stance_user_dict[stance])
+            for stance in self.stance_user_dict.keys():
+                print(f"User count for {stance} stance: {len(self.stance_user_dict[stance])}")
+                self.stance_user_dict[stance] = list(self.stance_user_dict[stance])
+                
+                self.stance_stats[stance]  = len(self.stance_user_dict[stance])
 
 
 
 
 
 
-        json.dump(self.stance_user_dict, open("stance-users.json", "w"))
-        json.dump(self.stance_stats, open("stance-stats.json" , "w"))
+            json.dump(self.stance_user_dict, open(f"it{iteration}-stance-users.json", "w"))
+            json.dump(self.stance_stats, open("it{iteration}-stance-stats.json" , "w"))
 
 
 
