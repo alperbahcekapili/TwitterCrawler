@@ -35,6 +35,7 @@ class Cansin_Location_Detector:
 
     updated_indexes = []
     users = []
+    usernames = []
     locations = []
 
     
@@ -108,9 +109,11 @@ class Cansin_Location_Detector:
                 self.r.set(str(userid),to_store)
                 if userid not in self.users:
                     self.users.append(userid)
+                    self.usernames.append(username)
                     self.locations.append(userloc)
             elif userid not in self.users:
                 self.users.append(userid)
+                self.usernames.append(username)
                 self.locations.append(userloc)
 
         return (start, len(self.users))
@@ -257,7 +260,8 @@ class Cansin_Location_Detector:
 
         user_loc_dict = {
             "userid": self.users,
-            "userloc": self.locations
+            "userloc": self.locations,
+            "username": self.usernames
         }
 
         
