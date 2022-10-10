@@ -10,14 +10,10 @@ st.title('Welcome')
 st.write("This tool is designed to assist researchers works with Twitter API and tweets."+
 "Tool has several features. Below you can find informations about each one of them. ")
 
-st.header("Crawler")
-st.write('Here are explanations')
+expander = st.expander("Instructions")
 
-st.header("Preprocess")
-st.write('Here are explanations')
-
-st.header("User Based Dashboard")
-st.write('Here are explanations')
-
-st.header("Ready to use NLP models")
-st.write('Here are explanations')
+readme_file = open("Readme.md")
+readme_str =""
+for line in readme_file.readlines():
+    readme_str += line 
+expander.write(readme_str)
