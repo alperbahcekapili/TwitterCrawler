@@ -9,7 +9,6 @@ import pandas as pd
 from redis.commands.json.path import Path
 import sys
 sys.path.insert(0, os.path.join(os.getcwd(), '/Postprocess_scripts'))
-from pages.Preprocess_scripts.PreprocessDump import PreprocessDump
 
 def is_retweet_processed(tweet):
     # input: pd.Dataframe row
@@ -178,6 +177,11 @@ elif selection == "Processed":
                     if userid not in users:
                         users.append(userid)
                         user_stats.loc[len(user_stats.index)] = [userid, username, userloc, "Good", 21]
+
+
+                    
+
+
 
                 index+=1
         st.write("--- total parsing in %s seconds ---" % (time.time() - start_time))
