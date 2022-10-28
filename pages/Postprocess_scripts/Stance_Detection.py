@@ -14,10 +14,13 @@ class StanceDetection:
     users = []
     # retweeted user lists
     retweeted = []
+    
     # stances for each user
+    # retweet counts for each user
     label = []
 
-
+    # user-stance
+    stances = {}
 
 
 
@@ -100,11 +103,13 @@ class StanceDetection:
 
         json.dump({"users": self.users, "users_retweeted": self.retweeted}  ,open("retweets-users.json", "w"))
 
-    def one_iteration(self):
+    def one_iteration(self, warmup=False):
         # iterate through all users and change immedietly if needed
 
         prev_stats = copy.deepcopy(self.stance_stats)
         changed_users = 0 
+
+        print(self.user_stances)
 
         for i in range(len(self.users)):
 
@@ -113,7 +118,7 @@ class StanceDetection:
             if master user is faced then we should not make any changes
             """
 
-            if self.is_master(self.users[i]) != False:
+            if self.is_master(self.users[i]):
                 continue
 
             # get current stance of that user
@@ -121,42 +126,93 @@ class StanceDetection:
 
             # we will iterate through the users current user retweeted
             # we will add the stances we obtain from retweeted users
-            # if only one is detected then we will set this as stance of the user
+            # if max voted stance is threshold bigger than others then assign this stance
             # otherwise we will set label as Unknown
             detected_stances = set()
+            detected_stance_counts = {}
+
+            for stance in self.stance_user_dict.keys():
+                detected_stance_counts[stance] = 0
+
             for retweeted_user in self.retweeted[i]:
-                for stance in self.stance_user_dict.keys():
-                    if retweeted_user in self.stance_user_dict[stance]:
-                        # if retweeted user in our previously labeled users then we will add to detected_stances
-                        detected_stances.add(stance)
-                        # we can break because each user can be attached to only one stance
+                if retweeted_user in self.user_stances and  self.user_stances[retweeted_user] != "Unknown":
+                    detected_stance_counts[self.user_stances[retweeted_user]]+=1 
+                    
+
+            for stance in self.stance_user_dict.keys():
+                if detected_stance_counts[stance] != 0:
+                    print("AGAAAAA")
+
+            def getStance(detected_stance_counts, warmup=False):
+
+                max= {"stance": "", "count": -1}
+                second = {"stance": "", "count": -2}
+                for k,v in detected_stance_counts.items():
+                    if max["count"]== -1:
+                        max["stance"] = k
+                        max["count"] = v
                         break
+                index = 0
+                for k,v in detected_stance_counts.items():
+                    index+=1
+                    if index == 1:
+                        continue
+                    if v > max["count"] and v > second["count"]:
+                        second["stance"] = max["stance"]
+                        second["count"] = max["count"]
+                        max["count"] = v
+                        max["stance"] = k
+                    elif v > second["count"]:
+                        second["count"] = v
+                        second["stance"] = k
+                       
 
-            
-            if len(detected_stances) == 1:
-                # now we can set this user as stance as well
-                to_set_stance = detected_stances.pop()
-                if to_set_stance != current_stance:
-                    changed_users += 1
+               
+
+                if max["count"]-second["count"] >= 1 if warmup else 5:
+                    return max["stance"]
+                
+                return "Unknown"
 
 
-                # change older state
+            new_stance = getStance(detected_stance_counts, warmup)        
+            if new_stance != current_stance:
+                self.user_stances[self.users[i]] = new_stance
+                changed_users += 1
+                 # change older state
                 if current_stance != "Unknown":
                     self.stance_user_dict[current_stance].remove(self.users[i])
-
-                # add to set
-                self.stance_user_dict[to_set_stance].add(self.users[i])
-                # set individual stance
-                self.label[i] = to_set_stance
-
-
-            # then we should set label as unknown
-            elif len(detected_stances) > 1:
-
-                # change older state if was not already onknown
-                if current_stance != "Unknown":
+                    self.stance_user_dict[new_stance].add(self.users[i])
+                    # set individual stance
+                    self.label[i] = new_stance
+                if new_stance == "Unknown":
                     self.stance_user_dict[current_stance].remove(self.users[i])
                     self.label[i] = "Unknown"
+
+            # if len(detected_stances) == 1:
+            #     # now we can set this user as stance as well
+            #     to_set_stance = detected_stances.pop()
+            #     if to_set_stance != current_stance:
+            #         changed_users += 1
+
+
+            #     # change older state
+            #     if current_stance != "Unknown":
+            #         self.stance_user_dict[current_stance].remove(self.users[i])
+
+            #     # add to set
+            #     self.stance_user_dict[to_set_stance].add(self.users[i])
+            #     # set individual stance
+            #     self.label[i] = to_set_stance
+
+
+            # # then we should set label as unknown
+            # elif len(detected_stances) > 1:
+
+            #     # change older state if was not already onknown
+            #     if current_stance != "Unknown":
+            #         self.stance_user_dict[current_stance].remove(self.users[i])
+            #         self.label[i] = "Unknown"
 
         return changed_users
 
@@ -165,6 +221,11 @@ class StanceDetection:
         self.users = user_retweets["users"]
         self.retweeted = user_retweets["users_retweeted"]
         self.label = ["Unknown" for i in range(len(self.users))]
+        for user in self.users:
+            self.user_stances[user] = "Unknown"
+        
+
+
 
         # set master users
 
@@ -177,10 +238,12 @@ class StanceDetection:
                 if username in self.users: 
                     # if we crawled data for this person then we don need to add new user to existing users
                     self.label[self.users.index(username)] = stance
+                    self.user_stances[username] = stance
                 else: 
                     # if this person is not in our users then we should extend lists
                     self.users.append(username)
                     self.label.append(stance)
+                    self.user_stances[username] = stance
                     self.retweeted.append([])
 
     def __init__(self, csv_root_path, stances_object, comm_queue, from_preexisting):
@@ -190,6 +253,8 @@ class StanceDetection:
         # create variables for stance statistics 
         self.stance_stats = {}
         
+        # user-stance
+        self.user_stances = {}
 
         
         
@@ -203,6 +268,7 @@ class StanceDetection:
                     self.stance_user_dict[stance].add(username)
                     self.users.append(username)
                     self.retweeted.append([])
+                    self.user_stances[username] = "Unknown"
                     self.label.append(stance)
             all_files = self.get_to_be_processed_files(csv_root_path)
 
@@ -231,7 +297,7 @@ class StanceDetection:
             iteration+=1
             print("Start time: ", datetime.now())    
             start_time = time.time()
-            changed_users = self.one_iteration()
+            changed_users = self.one_iteration(warmup=iteration < 2)
             print("Epoch execution time: ", time.time() - start_time)
             print("Total stance changes: ",changed_users)
 
