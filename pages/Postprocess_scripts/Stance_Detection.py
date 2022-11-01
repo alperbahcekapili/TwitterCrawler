@@ -109,7 +109,7 @@ class StanceDetection:
         prev_stats = copy.deepcopy(self.stance_stats)
         changed_users = 0 
 
-        print(self.user_stances)
+        #print(self.user_stances)
 
         for i in range(len(self.users)):
 
@@ -139,9 +139,8 @@ class StanceDetection:
                     detected_stance_counts[self.user_stances[retweeted_user]]+=1 
                     
 
-            for stance in self.stance_user_dict.keys():
-                if detected_stance_counts[stance] != 0:
-                    print("AGAAAAA")
+
+            #print(detected_stance_counts)
 
             def getStance(detected_stance_counts, warmup=False):
 
@@ -169,26 +168,35 @@ class StanceDetection:
 
                
 
-                if max["count"]-second["count"] >= 1 if warmup else 5:
+                if max["count"]-second["count"] >= 4     : # if warmup else 5
                     return max["stance"]
                 
                 return "Unknown"
 
 
-            new_stance = getStance(detected_stance_counts, warmup)        
+            new_stance = getStance(detected_stance_counts, warmup)    
+
             if new_stance != current_stance:
                 self.user_stances[self.users[i]] = new_stance
+
+
                 changed_users += 1
+
                  # change older state
-                if current_stance != "Unknown":
-                    self.stance_user_dict[current_stance].remove(self.users[i])
-                    self.stance_user_dict[new_stance].add(self.users[i])
-                    # set individual stance
-                    self.label[i] = new_stance
-                if new_stance == "Unknown":
+                if current_stance != "Unknown" and self.users[i] in self.stance_user_dict[current_stance]:
+                    
                     self.stance_user_dict[current_stance].remove(self.users[i])
                     self.label[i] = "Unknown"
 
+
+                if new_stance != "Unknown":
+                        
+                    self.stance_user_dict[new_stance].add(self.users[i])
+                    # set individual stance
+                    self.label[i] = new_stance
+                
+            
+                    
             # if len(detected_stances) == 1:
             #     # now we can set this user as stance as well
             #     to_set_stance = detected_stances.pop()
@@ -291,13 +299,13 @@ class StanceDetection:
 
         # start iterations
         changed_users = 1001
-        while(changed_users > 1000):
+        while(changed_users > 50):
 
             print(f"Starting iteration number: {iteration}")
             iteration+=1
             print("Start time: ", datetime.now())    
             start_time = time.time()
-            changed_users = self.one_iteration(warmup=iteration < 2)
+            changed_users = self.one_iteration(warmup=False)
             print("Epoch execution time: ", time.time() - start_time)
             print("Total stance changes: ",changed_users)
 
