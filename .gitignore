@@ -18,7 +18,8 @@ retweets-users.json
 /iterations
 ultimate_stats.json
 new_stats_summary
-
+new_german.abrs
+german_states.abrs
 pages/Postprocess_scripts/__pycache__/
 pages/__pycache__/*
 
