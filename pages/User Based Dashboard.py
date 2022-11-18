@@ -1,4 +1,6 @@
+from asyncio import sleep
 from multiprocessing import Process, Queue
+from pages.Postprocess_scripts.Functions import generate_figure, get_age_interval, get_redis_client, predict_gender, get_recursive_file_list, read_stances
 import streamlit as st
 import json
 import random
@@ -8,183 +10,239 @@ import time
 import pandas as pd
 from redis.commands.json.path import Path
 import sys
-sys.path.insert(0, os.path.join(os.getcwd(), '/Postprocess_scripts'))
+from pages.Postprocess_scripts.Stance_Detection import StanceDetection
 
-def is_retweet_processed(tweet):
-    # input: pd.Dataframe row
+from pages.Preprocess_scripts.Functions import generate_abrs_object, process_tweet, try_new_locations, visualize_results
+sys.path.insert(1, os.path.join(os.getcwd(), 'pages/Postprocess_scripts'))
 
-    # 3rd index retweet
-    # 4th index RT @b33chichi: In honor of chp 402.1 bc this was literally him,
-
-    if tweet.iloc[3] == "retweet" or "RT @" in tweet.iloc[4]:
-        return tweet.iloc[4].split("@")[1].split(":")[0]
-    
-    return None
+from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 
 
 
 
 
-r = redis.Redis(host='localhost', port=6379, db=0)
-
-st.set_page_config(page_title="User Based Dashboard", page_icon=None, layout="wide", initial_sidebar_state="auto", menu_items=None)
-
-
+r = get_redis_client()
 st.title("User Based Dashboard")
-
-
-
-
 selection = st.selectbox("Select the loading format", ["","Dump", "Processed"])
-if "User_Based_Dashboard:need_refresh" not in st.session_state:
-    st.session_state["User_Based_Dashboard:need_refresh"] = True
+# get names dictionary for rule based gender prediction
+names = None
+if selection:
+    # if now previously calculated
+    if "user_stats" not in st.session_state:
+        names = pd.read_csv("./local/isimler.csv")
+        user_stats = pd.DataFrame(columns=["Username", "Text", "Userloc", "Stance", "Age", "Gender"])
+        genders = {
+            "male" : 0,
+            "female" : 0,
+            "unknown" : 0
+        }
+        stances = {"AKP": 0, "CHP": 0, "IYI PARTI": 0}
+        ages = {}
+        for i in range(0 ,100, 10):
+            ages[f"{i}-{i+10}"] = 0
 
 
-if selection == "Dump":
+root = st.text_input("Give processed tweet root directory path to generate user dashboards...")
+
+buttons_pane = st.empty()
+statistics_pane = st.empty()
+predicted_stats = None
 
 
-    dump_path = st.text_input("Give dump path to generate user dashboards...")
-    # here each line contains a tweet object
-
-    user_stats = pd.DataFrame(columns=["username", "location", "Stance", "Age", "Sex"])
-    users = set()
-
-    count = 0
 
 
-    if dump_path:
-        # Now we should preprocess files recursively
-        current_folder = dump_path
-        to_be_processed_file_list = os.listdir(current_folder)
-        templist = []
-        for i in range(len(to_be_processed_file_list)):
-            templist.append(os.path.join(current_folder , to_be_processed_file_list[i]))
-
-        to_be_processed_file_list = templist
+if "user_stats" not in st.session_state:
         
+    
+
+    if selection == "Dump" and root:
+
+        
+        users = set()
+        count = 0
+
+        # Now we should preprocess files recursively
+        to_be_processed_file_list= get_recursive_file_list(root)
         index = 0
-
-
         start_time = time.time()
             
         
         
-        while True:
-            if len(to_be_processed_file_list) <= index:
-                break
-
-            isDir = os.path.isdir(to_be_processed_file_list[index])
-            if isDir: 
-                new_file_list = os.listdir(to_be_processed_file_list[index])
-                to_be_appended = list(map(lambda x  : os.path.join(to_be_processed_file_list[index], x), new_file_list))
-                to_be_processed_file_list.extend(to_be_appended)
-                to_be_processed_file_list.remove(to_be_processed_file_list[index])
-
-
-            else: 
         
-        
-        
-                dump_file = open(to_be_processed_file_list[index], "r")
-
-
-                while True:
-                    count += 1
+        for index in range(len(to_be_processed_file_list)):        
+            dump_file = open(to_be_processed_file_list[index], "r")
+            while True:
+                count += 1
+                # Get next line from file
+                line = dump_file.readline()
                 
-                    # Get next line from file
-                    line = dump_file.readline()
+                # if line is empty
+                # end of file is reached
+                if not line:
+                    break
+
+                tweet = json.loads(line)
+                [userid, username, usertext ,userloc, userstance, userage, predicted_gender] = process_tweet(tweet ,option=selection, names= names, r = r)
+                genders[predicted_gender]+=1
+                stances[userstance] += 1
+                ages[get_age_interval(interval = 10 ,age = userage)] += 1
                 
-                    
-                    # if line is empty
-                    # end of file is reached
-                    if not line:
-                        break
-                    
-
-                    tweet = json.loads(line)
-
-                    username = tweet["user"]["screen_name"]
-                    userid = tweet["user"]["id"]
-                    if 0 == r.exists(userid):
-                        r.set(str(userid), tweet["text"])
-                    else:
-                        r.set(str(userid), "|||".join((r.get(userid).decode("utf-8"),tweet["text"])))
-
-                    if userid not in users:
-                        users.add(userid)
-                        #user_stats[userid] = {"id": userid, "username":username}
-                        user_stats.loc[userid] = [username, None, None, None, None, None]
-                    
-
-                index+=1
-        dump_path=False
+                if userid not in users:
+                    users.add(userid)
+                    user_stats.loc[len(user_stats.index)] = [username, usertext ,userloc, userstance, userage, predicted_gender]                
+            predicted_stats = (stances, ages, genders)
+            visualize_results(predicted_stats=(stances, ages, genders), statistics_pane=statistics_pane, user_stats=user_stats)
 
 
 
         st.write("--- total parsing in %s seconds ---" % (time.time() - start_time))
-        st.write(r.dbsize())
-        st.write("To inspect a user, select from the following list")
 
 
-
-
-        user_stats_container = st.empty()
-
-
-
-elif selection == "Processed":
-    processed_path = st.text_input("Give processed tweet root directory path to generate user dashboards...")
-    if processed_path:
-        # Now we should preprocess files recursively
-        current_folder = processed_path
-        to_be_processed_file_list = os.listdir(current_folder)
-        templist = []
-        for i in range(len(to_be_processed_file_list)):
-            templist.append(os.path.join(current_folder , to_be_processed_file_list[i]))
-
-        to_be_processed_file_list = templist
+    elif selection == "Processed" and root:
         
-        index = 0
-
-
         start_time = time.time()
             
-        user_stats = pd.DataFrame(columns=["Userid", "Username", "Userloc", "Stance", "Age"])
         users = []
 
-        while True:
-            if len(to_be_processed_file_list) <= index:
-                break
-
-            isDir = os.path.isdir(to_be_processed_file_list[index])
-            if isDir: 
-                new_file_list = os.listdir(to_be_processed_file_list[index])
-                to_be_appended = list(map(lambda x  : os.path.join(to_be_processed_file_list[index], x), new_file_list))
-                to_be_processed_file_list.extend(to_be_appended)
-                to_be_processed_file_list.remove(to_be_processed_file_list[index])
-
-
-            else: 
+        to_be_processed_file_list = get_recursive_file_list(root)
         
-                dump_file = pd.read_csv(to_be_processed_file_list[index] , lineterminator = "\n")
-                count = 0
-                for index, row in dump_file.iterrows():
-                    count += 1
-                    username = row["user_screen_name"]
-                    userid = row["user_id"]
-                    userloc = row["user_location"]
+        for file in to_be_processed_file_list:
+            dump_file = pd.read_csv( file, lineterminator = "\n")
+            count = 0
+            for index, row in dump_file.iterrows():
+                count += 1
 
-                    if userid not in users:
-                        users.append(userid)
-                        user_stats.loc[len(user_stats.index)] = [userid, username, userloc, "Good", 21]
+                [userid, username, usertext ,userloc, userstance, userage, predicted_gender] = process_tweet(row ,option=selection, names= names, r = r)
+
+                genders[predicted_gender]+=1
+                stances[userstance] += 1
+                ages[get_age_interval(interval = 10 ,age = userage)] += 1
+
+                if userid not in users:
+                    users.append(userid)
+                    user_stats.loc[len(user_stats.index)] = [username, usertext ,userloc, userstance, userage, predicted_gender]
+
+            predicted_stats = (stances, ages, genders)  
+            visualize_results(predicted_stats=(stances, ages, genders), statistics_pane=statistics_pane, user_stats=user_stats)
+
+        st.write("--- total parsing in %s seconds ---" % (time.time() - start_time))
+
+    if selection and root:
+        st.session_state["predicted_stats"] = (stances, ages, genders)
+        st.session_state["user_stats"] = user_stats
+        visualize_results(predicted_stats=(stances, ages, genders), statistics_pane=statistics_pane, user_stats=user_stats)
+
+
+
+    
+else:
+    visualize_results(predicted_stats=st.session_state["predicted_stats"], statistics_pane=statistics_pane, user_stats=st.session_state["user_stats"])
+    
+
+
+
+
+
+
+
+
+# # stats part
+if selection and root:
+    
+    with buttons_pane.container():
+
+        col1, col2, col3  = st.columns(3, gap = "medium")
+        with col1:
+            loc_button = st.button("Location Detection")
+            
+            if loc_button or "Location_Detection_Button_Triggered" in st.session_state:
+                st.session_state["Location_Detection_Button_Triggered"] = True
+                st.text("Location Detection Button Triggered")
+                user_stats = st.session_state["user_stats"]
+                (stances, ages, genders) = st.session_state["predicted_stats"]
+                abrs_path = st.text_input("Please give abrs file path...")
+                     
+                if abrs_path:
+                    st.text("Abrs path is given...")
+                    st.session_state.pop("Location_Detection_Button_Triggered")
+                    abrs = generate_abrs_object(abrs_path)
+                    detected_users = try_new_locations(st.session_state["user_stats"], abrs)
+                    loc_detection_results = ["-" for i in range(len(st.session_state["user_stats"]))]
+                    for i in detected_users:
+                        loc_detection_results[ i] = "+"
+                    st.session_state["user_stats"]["Location Detected"] = loc_detection_results
+                    user_stats = st.session_state["user_stats"]
+                    visualize_results(predicted_stats=(stances, ages, genders), statistics_pane=statistics_pane, user_stats=user_stats)
+                    st.text(f"Totally {len(detected_users)} locations are detected out of {len(user_stats)}, detection rate: {len(detected_users)/ len(user_stats)}")
+                        
+        with col2:
+            stance_button = st.button("Stance Detection")
+            if stance_button or "Stance_Detection_Button_Triggered" in st.session_state: 
+                st.text("Stance_Detection_Button_Triggered")
+                st.session_state["Stance_Detection_Button_Triggered"] = True
+
+                file_path = st.text_input("Stance labels file")
+
+
+                if file_path:
+
+                    stances = read_stances(file_path)
+                    expander = st.expander("Stances")
+                    expander.write(stances)
+
+
+                    preexisting_retweet_user_dict = st.selectbox("I have preexisting user retweets dictionary", ["Yes", "No"])
+                    
+                    if preexisting_retweet_user_dict == "No":
+                        tweets_file_path =  st.text_input("Please provide the root folder that contains processed csv's")
+                    elif preexisting_retweet_user_dict == "Yes":
+                        tweets_file_path =  st.text_input("Please provide the dictionary file")
 
 
                     
+                    if tweets_file_path:
+                        st.info("Starting Process...")
+                        st.session_state["stats_queue"] = Queue(1000)
+                        st.session_state["preprocess_process"] =  Process(target=StanceDetection, args=(tweets_file_path, stances, st.session_state["stats_queue"], preexisting_retweet_user_dict == "Yes" ))
+                        st.session_state["preprocess_process"].start()
+
+
+                        stats = st.empty()
+                        st.session_state.pop("Stance_Detection_Button_Triggered")
+
+                        while(True):
+                            sleep(0.001)
+                            if not st.session_state["stats_queue"].empty():
+                                response = st.session_state["stats_queue"].get(block=True, timeout=1)
+                                if "break" in response.keys():
+                                    break
+                                
+                                if  "user_stance_dict" in response.keys():
+
+                                    user_stance_dict = response["user_stance_dict"]
+                                    for usr in user_stance_dict.keys():
+                                        # update this user's stance
+                                        st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance"] = user_stance_dict[usr]
+                                        
+
+                                
+                                    visualize_results(predicted_stats=st.session_state["predicted_stats"], statistics_pane=statistics_pane, user_stats=st.session_state["user_stats"])
+
+                                # with stats.container():
+                                #     st.write(response)
 
 
 
-                index+=1
-        st.write("--- total parsing in %s seconds ---" % (time.time() - start_time))
-        print(user_stats)
-        st.dataframe(user_stats, width = 1500, height = 600)
+
+
+
+
+
+
+        with col3:
+            loc_based_det = st.button("Location Based Detection")
+            if loc_based_det: 
+                st.text("Location Based Detection Button Triggered")
+            
+        
 

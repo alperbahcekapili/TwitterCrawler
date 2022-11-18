@@ -54,16 +54,11 @@ if file_path:
         stats = st.empty()
 
         while(True):
-
-            
             sleep(0.001)
             if not st.session_state["stats_queue"].empty():
                 response = st.session_state["stats_queue"].get(block=True, timeout=1)
-
                 if "break" in response.keys():
                     break
-
-
                 with stats.container():
                     st.write(response)
 

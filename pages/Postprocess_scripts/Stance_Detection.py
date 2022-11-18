@@ -109,6 +109,16 @@ class StanceDetection:
         prev_stats = copy.deepcopy(self.stance_stats)
         changed_users = 0 
 
+
+        print(self.users)
+        print(self.label)
+        print(self.stance_user_dict)
+        print(self.stance_stats)
+        print(self.stances)
+        print(self.user_stances)
+        print(self.retweeted)
+
+
         #print(self.user_stances)
 
         for i in range(len(self.users)):
@@ -165,10 +175,7 @@ class StanceDetection:
                         second["count"] = v
                         second["stance"] = k
                        
-
-               
-
-                if max["count"]-second["count"] >= 4     : # if warmup else 5
+                if max["count"]-second["count"] >= 1     : # if warmup else 5
                     return max["stance"]
                 
                 return "Unknown"
@@ -221,6 +228,16 @@ class StanceDetection:
             #     if current_stance != "Unknown":
             #         self.stance_user_dict[current_stance].remove(self.users[i])
             #         self.label[i] = "Unknown"
+
+        print(self.users)
+        print(self.label)
+        print(self.stance_user_dict)
+        print(self.stance_stats)
+        print(self.stances)
+        print(self.user_stances)
+        print(self.retweeted)
+
+
 
         return changed_users
 
@@ -276,30 +293,28 @@ class StanceDetection:
                     self.stance_user_dict[stance].add(username)
                     self.users.append(username)
                     self.retweeted.append([])
-                    self.user_stances[username] = "Unknown"
+                    self.user_stances[username] = stance
                     self.label.append(stance)
+                
             all_files = self.get_to_be_processed_files(csv_root_path)
 
             for file_path in all_files:
-
                 self.extract_users_retweets(pd.read_csv(file_path, lineterminator="\n"))
                 self.comm_queue.put({"retweeted_user":len(self.users)})
 
             
-            self.comm_queue.put({"retweeted_user":len(self.users), "break":True})
 
         # parse all to get retweeted lists
         else:
             # this parameter can be changed. it is not csv root path in this case
             print("Loading from preexisting user-retweeted_users json file ")
             self.load_preexisting_dict(csv_root_path)
-            self.comm_queue.put({"retweeted_user":len(self.users), "break":True})
 
         iteration = 0
 
         # start iterations
         changed_users = 1001
-        while(changed_users > 50):
+        while(changed_users > 3):
 
             print(f"Starting iteration number: {iteration}")
             iteration+=1
@@ -323,8 +338,11 @@ class StanceDetection:
             json.dump(to_save_dict, open(os.path.join(dir,f"it{iteration}-stance-users.json"), "w"))
             json.dump(self.stance_stats, open(os.path.join(dir,f"it{iteration}-stance-stats.json") , "w"))
 
-
-
+        
+        # here put final stances to pipe
+        self.comm_queue.put({"user_stance_dict": self.user_stances})
+        self.comm_queue.put({"stance_user_dict":self.stance_user_dict})
+        self.comm_queue.put({"retweeted_user":len(self.users), "break":True})
         
 
 
