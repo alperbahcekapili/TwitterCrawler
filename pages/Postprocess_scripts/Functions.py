@@ -72,8 +72,8 @@ def have_similar(l, n):
 def generate_figure(stats):
 
 
-    print("Generating figures for: ")
-    print(stats)
+    # print("Generating figures for: ")
+    # print(stats)
 
 
     keys = stats.keys()
@@ -142,6 +142,7 @@ def generate_figure(stats):
 import streamlit as st
 
      
+
 
 def read_stances(file_path):
     stances = {}

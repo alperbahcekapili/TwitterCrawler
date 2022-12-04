@@ -271,7 +271,7 @@ class StanceDetection:
                     self.user_stances[username] = stance
                     self.retweeted.append([])
 
-    def __init__(self, csv_root_path, stances_object, comm_queue, from_preexisting):
+    def __init__(self, csv_root_path, stances_object, comm_queue):
         self.comm_queue = comm_queue
         self.stances = stances_object
 
@@ -283,32 +283,31 @@ class StanceDetection:
 
         
         
-        if not from_preexisting:
-            # add master users to the list
-            for stance in self.stances.keys():
-                self.stance_stats[stance] = 0
-                self.stance_user_dict[stance] = set()
+        # add master users to the list
+        for stance in self.stances.keys():
+            self.stance_stats[stance] = 0
+            self.stance_user_dict[stance] = set()
 
-                for username in self.stances[stance]:
-                    self.stance_user_dict[stance].add(username)
-                    self.users.append(username)
-                    self.retweeted.append([])
-                    self.user_stances[username] = stance
-                    self.label.append(stance)
-                
-            all_files = self.get_to_be_processed_files(csv_root_path)
+            for username in self.stances[stance]:
+                self.stance_user_dict[stance].add(username)
+                self.users.append(username)
+                self.retweeted.append([])
+                self.user_stances[username] = stance
+                self.label.append(stance)
+            
+        all_files = self.get_to_be_processed_files(csv_root_path)
 
-            for file_path in all_files:
-                self.extract_users_retweets(pd.read_csv(file_path, lineterminator="\n"))
-                self.comm_queue.put({"retweeted_user":len(self.users)})
+        for file_path in all_files:
+            self.extract_users_retweets(pd.read_csv(file_path, lineterminator="\n"))
+            self.comm_queue.put({"retweeted_user":len(self.users)})
 
             
 
-        # parse all to get retweeted lists
-        else:
-            # this parameter can be changed. it is not csv root path in this case
-            print("Loading from preexisting user-retweeted_users json file ")
-            self.load_preexisting_dict(csv_root_path)
+        # # parse all to get retweeted lists
+        # else:
+        #     # this parameter can be changed. it is not csv root path in this case
+        #     print("Loading from preexisting user-retweeted_users json file ")
+        #     self.load_preexisting_dict(csv_root_path)
 
         iteration = 0
 

@@ -12,6 +12,7 @@ import time
 import pandas as pd
 from redis.commands.json.path import Path
 import sys
+from pages.Postprocess_scripts.Random_Forest_Classifier import RFClassifier
 from pages.Postprocess_scripts.Stance_Detection import StanceDetection
 
 from pages.Preprocess_scripts.Functions import generate_abrs_object, process_tweet, try_new_locations, visualize_results
@@ -154,13 +155,13 @@ if selection and root:
     
     with buttons_pane.container():
 
-        col1, col2, col3  = st.columns(3, gap = "medium")
+        col1, col2, col3, col4, col5  = st.tabs(["Location Detection", "Stance Detection" , "Location Based Stance Detection", "Age Prediction", "Gender Prediction"])
         with col1:
-            loc_button = st.button("Location Detection")
+            loc_button = st.button("Start", key="1")
             
             if loc_button or "Location_Detection_Button_Triggered" in st.session_state:
                 st.session_state["Location_Detection_Button_Triggered"] = True
-                st.text("Location Detection Button Triggered")
+                
                 user_stats = st.session_state["user_stats"]
                 (stances, ages, genders) = st.session_state["predicted_stats"]
                 abrs_path = st.text_input("Please give abrs file path...")
@@ -176,63 +177,91 @@ if selection and root:
                     st.session_state["user_stats"]["Location Detected"] = loc_detection_results
                     user_stats = st.session_state["user_stats"]
                     visualize_results(predicted_stats=(stances, ages, genders), statistics_pane=statistics_pane, user_stats=user_stats)
-                    st.text(f"Totally {len(detected_users)} locations are detected out of {len(user_stats)}, detection rate: {len(detected_users)/ len(user_stats)}")
+                    st.text(f"Totally {len(detected_users)} locations are detected out of {len(user_stats)}, detection rate: "+ "{:.2f}".format(len(detected_users)/ len(user_stats)))
                         
         with col2:
-            stance_button = st.button("Stance Detection")
-            if stance_button or "Stance_Detection_Button_Triggered" in st.session_state: 
-                st.text("Stance_Detection_Button_Triggered")
-                st.session_state["Stance_Detection_Button_Triggered"] = True
-
+            retweet_based = st.checkbox("Retweet Based Stance Detection")
+            custom_detection = st.checkbox("Custom Stance Detection")
+            stance_button = st.button("Start", key = 2)
+            if retweet_based and custom_detection:
+                st.warning("You can pick only one option")
+            
+            elif (stance_button or "Retweet_Based" in st.session_state) and (retweet_based): 
+                st.session_state["Retweet_Based"] = True
                 file_path = st.text_input("Stance labels file")
-
-
                 if file_path:
-
                     stances = read_stances(file_path)
                     expander = st.expander("Stances")
                     expander.write(stances)
-
-
-                    preexisting_retweet_user_dict = st.selectbox("I have preexisting user retweets dictionary", ["Yes", "No"])
-                    
-                    if preexisting_retweet_user_dict == "No":
-                        tweets_file_path =  st.text_input("Please provide the root folder that contains processed csv's")
-                    elif preexisting_retweet_user_dict == "Yes":
-                        tweets_file_path =  st.text_input("Please provide the dictionary file")
-
-
-                    
+                    tweets_file_path =  root
                     if tweets_file_path:
                         st.info("Starting Process...")
                         st.session_state["stats_queue"] = Queue(1000)
-                        st.session_state["preprocess_process"] =  Process(target=StanceDetection, args=(tweets_file_path, stances, st.session_state["stats_queue"], preexisting_retweet_user_dict == "Yes" ))
+                        st.session_state["preprocess_process"] =  Process(target=StanceDetection, args=(tweets_file_path, stances, st.session_state["stats_queue"]))
                         st.session_state["preprocess_process"].start()
-
-
                         stats = st.empty()
-                        st.session_state.pop("Stance_Detection_Button_Triggered")
-
+                        st.session_state.pop("Retweet_Based")
                         while(True):
-                            sleep(0.001)
                             if not st.session_state["stats_queue"].empty():
                                 response = st.session_state["stats_queue"].get(block=True, timeout=1)
                                 if "break" in response.keys():
                                     break
-                                
                                 if  "user_stance_dict" in response.keys():
-
                                     user_stance_dict = response["user_stance_dict"]
                                     st.session_state["user_stats"]["Stance Detected"] = "-"
                                     for usr in user_stance_dict.keys():
                                         # update this user's stance
                                         st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance"] = user_stance_dict[usr]
                                         st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance Detected"] = "+"
-                                        
-
-                                
                                     visualize_results(predicted_stats=st.session_state["predicted_stats"], statistics_pane=statistics_pane, user_stats=st.session_state["user_stats"])
 
+
+
+
+            elif (stance_button or "Custom_Detection" in st.session_state) and (custom_detection):
+                #/home/alper/Documents/python scripts/text_classifier_model
+                model_path = st.text_input("Please write the path to your model. Texts of the users will be fed to the model. After predictions, stances of the users will be updated...")
+                st.session_state["Custom_Detection"] = True
+
+                if model_path:
+                        st.info("Starting Process...")
+                        st.session_state["stats_queue"] = Queue(1000)
+                        st.session_state["out_queue"] = Queue(1000)
+                        
+                        st.session_state["detection_process"] =  Process(target=RFClassifier, args=(model_path, st.session_state["out_queue"], st.session_state["stats_queue"]))
+                        st.session_state["detection_process"].start()
+                        stats = st.empty()
+                        st.session_state.pop("Custom_Detection")
+                        
+                        index = 0
+                        batch_size = 100
+                        while index < len(st.session_state["user_stats"]):
+                            end = index+batch_size
+                            if end > len(st.session_state["user_stats"]):
+                                end = len(st.session_state["user_stats"])
+                            # send users between these indexes
+                            st.session_state["out_queue"].put(st.session_state["user_stats"].iloc[index:end, :])
+
+                            # wait for response
+                            response = st.session_state["stats_queue"].get(block=True, timeout=None)
+                            st.session_state["user_stats"].loc[index:end, "Stance"] = response["Stances_df"].Stance
+                            visualize_results(predicted_stats=st.session_state["predicted_stats"], statistics_pane=statistics_pane, user_stats=st.session_state["user_stats"])
+                            if "break" in response.keys():
+                                st.write(response)
+                                st.session_state.pop("detection_process")
+                                st.session_state.pop("stats_queue")
+                                st.session_state.pop("out_queue")
+                                break
+
+                            
+                            # if  "user_stance_dict" in response.keys():
+                            #     user_stance_dict = response["user_stance_dict"]
+                            #     st.session_state["user_stats"]["Stance Detected"] = "-"
+                            #     for usr in user_stance_dict.keys():
+                            #         # update this user's stance
+                            #         st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance"] = user_stance_dict[usr]
+                            #         st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance Detected"] = "+"
+                            #     visualize_results(predicted_stats=st.session_state["predicted_stats"], statistics_pane=statistics_pane, user_stats=st.session_state["user_stats"])
                                 
 
 
@@ -244,9 +273,9 @@ if selection and root:
 
 
         with col3:
-            loc_based_det = st.button("Location Based Detection")
+            loc_based_det = st.button("Start", key = 3)
             if loc_based_det or "Location_Based_Detection_Triggered" in st.session_state: 
-                st.text("Location_Based_Detection_Triggered")
+                
                 st.session_state["Location_Based_Detection_Triggered"] = True
 
                 # /home/alper/Documents/Twitter Crawler Documents/GermanyElections/Voters.csv
@@ -290,7 +319,7 @@ if selection and root:
 
                         # get max of 
                         locs[loc]["stance"] = support_values[loc]["stance"]
-                        print(locs[loc])
+                        
                         for key in locs[loc].keys():
                             try:
                                 locs[loc][key] = float(locs[loc][key])
@@ -314,6 +343,12 @@ if selection and root:
                     st.session_state["Loc_List"] = locs_list
                 
     
+
+        with col4:
+            st.title("Age Prediction")
+        with col5:
+            st.title("Gender Prediction")
+
     if "Loc_Information" in st.session_state:
         # map = folium.Map( scrollWheelZoom = False, dragging=False)
         # st_map = st_folium(map, width=700, height = 400)
@@ -332,7 +367,7 @@ if selection and root:
         mean_lon/=len(chart_data)
         mean_lat/=len(chart_data)
 
-        print(mean_lat, mean_lon)
+        
 
         st.pydeck_chart(pdk.Deck(
             # map_style=None,
