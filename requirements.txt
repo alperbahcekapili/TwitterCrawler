@@ -1,0 +1,8 @@
+streamlit
+streamlit_tags
+tweepy
+matplotlib
+redis
+nltk
+scikit-learn
+streamlit-aggrid
