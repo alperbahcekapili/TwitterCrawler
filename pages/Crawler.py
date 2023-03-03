@@ -1,4 +1,5 @@
 import base64
+import gzip
 import streamlit as st
 from streamlit_tags import st_tags
 
@@ -130,11 +131,15 @@ def thread_function(topics):
                 
                 dumps.append(temp)
 
-            with open(os.path.join(file_prefix, topic+".twitter_crawler"), "w", encoding='utf8') as json_file:
+            
+            with gzip.open(os.path.join(file_prefix, topic+".twitter_crawler.gz"), "wt") as f:
                 out_str = json.dumps(dumps, ensure_ascii=False, default=str)
                 out_str = out_str[1:-1]
                 out_str = out_str.replace("}, ", "}\n")
-                json_file.write(out_str)
+                f.write(out_str)
+            # with gzip.open(os.path.join(file_prefix, topic+".twitter_crawler.gz"), "wb") as json_file:
+                
+            #     json_file.write(bytes(out_str, "utf-8"))
 
 
             crawler_message.caption( f"file saved to {mydir}/{topic}")
@@ -166,7 +171,7 @@ access_token = st.empty()
 access_token_secret = st.empty()
 
 
-if(isDevelopment != "AlperTheDeveloper" and isDevelopment != "") : 
+if(isDevelopment != "yes" and isDevelopment != "") : 
     consumer_key = st.text_input("consumer_key")
     consumer_secret = st.text_input("consumer_secret")
     access_token = st.text_input("access_token")

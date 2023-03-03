@@ -33,7 +33,7 @@ names = None
 if selection:
     # if now previously calculated
     if "user_stats" not in st.session_state:
-        names = pd.read_csv("./local/isimler.csv")
+        names = pd.read_csv(os.path.join(os.getcwd(), "local", "names.csv") )
         user_stats = pd.DataFrame(columns=["Userid", "Username", "Text", "Userloc", "Stance", "Age", "Gender"])
         genders = {
             "male" : 0,
@@ -170,7 +170,7 @@ if selection and root:
                     st.text("Abrs path is given...")
                     st.session_state.pop("Location_Detection_Button_Triggered")
                     abrs = generate_abrs_object(abrs_path)
-                    detected_users = try_new_locations(st.session_state["user_stats"], abrs)
+                    detected_users = try_new_locations( abrs)
                     loc_detection_results = ["-" for i in range(len(st.session_state["user_stats"]))]
                     for i in detected_users:
                         loc_detection_results[ i] = "+"

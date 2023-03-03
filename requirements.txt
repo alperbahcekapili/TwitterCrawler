@@ -6,3 +6,6 @@ redis
 nltk
 scikit-learn
 streamlit-aggrid
+geopy
+folium
+streamlit_folium

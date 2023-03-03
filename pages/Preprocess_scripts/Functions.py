@@ -89,14 +89,14 @@ def generate_abrs_object(abrs_path):
         return locations
 
 
-def try_new_locations(user_stats: pd.DataFrame ,abrs):
+def try_new_locations(abrs):
 
     detected_users = []
-
-    for index, user in user_stats.iterrows():
+    
+    for index, user in st.session_state["user_stats"].iterrows():
 
         user_loc = user["Userloc"]
-
+        user_loc = user_loc.lower()
         did_detect = False
 
         # iterate over all locaitons
@@ -104,16 +104,20 @@ def try_new_locations(user_stats: pd.DataFrame ,abrs):
             
             # if user location in abr base. ex. user loc: Los Angl, abr base: Los Angles or
             # it is explicitly in one of abrs list
-            if user_loc in abrs[base_loc] or user_loc in base_loc:                        
-                user["Userloc"] = base_loc
+            if user_loc in abrs[base_loc] or user_loc in base_loc or base_loc in user_loc:                        
+                st.session_state["user_stats"].at[index,"Userloc"] = base_loc
                 detected_users.append(index)
                 break
 
             for abr_temp in abrs[base_loc]:
-                if user_loc in abr_temp:
-                    user["Userloc"] = base_loc
+                if user_loc in abr_temp or abr_temp in user_loc:
+                    st.session_state["user_stats"].at[index,"Userloc"] = base_loc
                     detected_users.append(index)
                     break
+        
+        print("Here location detection!!!!!!!")
+        print(st.session_state["user_stats"]["Userloc"])
+                
     return detected_users
 
 

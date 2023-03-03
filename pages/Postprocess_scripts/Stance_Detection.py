@@ -67,7 +67,9 @@ class StanceDetection:
             reftype = row["ref_type"]
             text = row["text"]
 
-            if reftype != "retweet" or "RT" not in text:
+            print(row)
+
+            if reftype != "retweet" and "RT" not in text:
                 continue
 
             referred_user = text.split("@")[1].split(":")[0]
@@ -80,7 +82,7 @@ class StanceDetection:
             Master Users Control
             if master user is faced then we should not make any changes
             """
-
+            print(self.stances)
             if self.is_master(username) != False:
                 continue
 
@@ -100,8 +102,10 @@ class StanceDetection:
                 self.retweeted[temp_index].append(referred_user)
 
 
-
-        json.dump({"users": self.users, "users_retweeted": self.retweeted}  ,open("retweets-users.json", "w"))
+        print("In extract user retweets")
+        print(self.users, self.retweeted)
+        import os
+        json.dump({"users": self.users, "users_retweeted": self.retweeted},open(os.path.join("local","retweets-users.json"), "w"))
 
     def one_iteration(self, warmup=False):
         # iterate through all users and change immedietly if needed
@@ -298,10 +302,13 @@ class StanceDetection:
         all_files = self.get_to_be_processed_files(csv_root_path)
 
         for file_path in all_files:
+            print("Opening file: ", file_path)
             self.extract_users_retweets(pd.read_csv(file_path, lineterminator="\n"))
             self.comm_queue.put({"retweeted_user":len(self.users)})
 
-            
+        
+        print(self.users)
+        print(self.retweeted)
 
         # # parse all to get retweeted lists
         # else:
@@ -319,7 +326,7 @@ class StanceDetection:
             iteration+=1
             print("Start time: ", datetime.now())    
             start_time = time.time()
-            changed_users = self.one_iteration(warmup=False)
+            changed_users = self.one_iteration(warmup=iteration<3)
             print("Epoch execution time: ", time.time() - start_time)
             print("Total stance changes: ",changed_users)
 

@@ -1,8 +1,8 @@
-master_folder = ""
+master_folder = "/home/alpfischer/python_files/TwitterCrawler/tweets_dump_csv"
 import os
 import pandas as pd
 
-def get_to_be_processed_files(self, processed_path):
+def get_to_be_processed_files(processed_path):
     current_folder = processed_path
     to_be_processed_file_list = os.listdir(current_folder)
     templist = []
@@ -36,8 +36,6 @@ usernames = []
 
 def extract_users( file_path):
 
-
-                # first generate set of users from the file
     dataframe = pd.read_csv(file_path, lineterminator="\n")
 
     start = len( users)
@@ -75,5 +73,5 @@ for file in files:
     to_save_dataframe = pd.DataFrame(user_loc_dict)
     print(to_save_dataframe)
 
-
-    to_save_dataframe.to_csv("user-id_dict.csv" )
+    import os
+    to_save_dataframe.to_csv(os.path.join(os.getcwd(), "local", "user-id_dict.csv") )

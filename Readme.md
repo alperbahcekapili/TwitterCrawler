@@ -80,6 +80,7 @@ We found that informative twitter profiles have huge impact on accuracy of this 
 
 For both dump and processed versions of data, you can have a user based dashboard here. More visualizations will be implemented...
 
+For gender detection there is a file needed which is called names.csv under local folder. This file should be csv. It should contain names in its first column and should contain "M" or "F" with respect to names gender. M is identifier for male and F female.
 
 ## Location Detection
 

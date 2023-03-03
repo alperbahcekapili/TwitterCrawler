@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 def predict_gender(names_df, name):
     
-    name_set = names_df.iloc[:, 1]
+    name_set = names_df.iloc[:, 0]
     detected_names = []
     index = 0
     for base in name_set:
@@ -18,7 +18,7 @@ def predict_gender(names_df, name):
     female_count = 0
 
     for index in detected_names:
-        if "E" in names_df.iloc[index, 2]:
+        if "M" in names_df.iloc[index, 1]:
             male_count+=1
         else:
             female_count+=1
@@ -84,15 +84,18 @@ def generate_figure(stats):
     labels = list(keys)
     sizes = [stats[k] for k in keys]
 
-    total = sum(sizes)
+    total = sum(sizes)    
+    fig1, ax1 = plt.subplots(figsize=(3,3))
+    if total == 0:
+        return fig1, ax1
+
 
     for i in range(len(labels)):
-        labels[i] += "\n" + "%{perc:d}".format(perc = int(100 * float(sizes[i])/total))
+        labels[i] += "\n" + "%{perc:d}".format(perc = int(100 * float(sizes[i])/(total+0.0001)))
 
     
     #explode = [1 if count == max(sizes) else 0 for count in sizes]  # only "explode" the 2nd slice (i.e. 'Hogs')
 
-    fig1, ax1 = plt.subplots(figsize=(3,3))
     ax1.cla()
     # colors = ['#ff9999','#66b3ff','#99ff99']
 

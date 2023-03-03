@@ -219,9 +219,7 @@ def preprocess_downloaded(tweet):
 
 
 st.header("Preprocess")
-st.write("You can preprocess the tweet you downloaded. You need to upload these tweets as bulk files. Here you will recieve visualizations of the statistics about tweets.")
-
-
+st.write("You can preprocess the tweet you downloaded. Here you will recieve visualizations of the statistics about tweets.")
 
 json_file_path = st.text_input("Please give your topics and keywords as a json file")
 if json_file_path:

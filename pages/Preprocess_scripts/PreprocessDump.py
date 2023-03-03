@@ -26,11 +26,11 @@ class PreprocessDump:
             for key2 in tweets[key1]:
                 col_list.append((key1, key2))
                 counts.append(len(tweets[key1][key2]))
-
         to_ret =  pd.DataFrame(data=[counts], index=["tweet_counts"])
         to_ret.columns =pd.MultiIndex.from_tuples(col_list)
+
+        return to_ret   
         
-        return to_ret
 
         
 
@@ -155,10 +155,8 @@ class PreprocessDump:
 
     def preprocess_file(self, topics_json ,file_path, output_folder, max_size):
         # need this parameter
-
         with gzip.open(file_path, "rt") as openfileobject:
             # now we should create lists for each language and each topic
-            
 
             # this dictionary will be used to translate topic index to 
             # its corresponding buffer
@@ -183,6 +181,7 @@ class PreprocessDump:
                 except Exception as e :
                     file = open("ErrorFile", "w")
                     file.write(str(e))
+                    file.write("Preprocessdump: preprocess_file")
                     file.close()
 
                 # change here
@@ -197,7 +196,11 @@ class PreprocessDump:
                 try:
                     tweet_json = json.loads(line)
                 except Exception as e:
-                    print(e)
+
+                    file = open("ErrorFile", "w")
+                    file.write(str(e))
+                    file.write("Preprocessdump: preprocess_file")
+                    file.close()
                     continue
 
                 #alman tweet'leri icin ozel belirtec
@@ -208,10 +211,13 @@ class PreprocessDump:
                 #create new tweet object with necessary fields
                 try:
                     temp_dict = self.preprocess_downloaded(tweet_json)
-                    if tweet_json["lang"] != "en":
-                        continue
+                    # if tweet_json["lang"] != "en":
+                    #     continue
                 except Exception as e:
-                    print(e)
+                    file = open("ErrorFile", "w")
+                    file.write(str(e))
+                    file.write("Preprocessdump: preprocess_file")
+                    file.close()
                     continue
 
                 temp_dict.update({ 
@@ -265,10 +271,9 @@ class PreprocessDump:
                     #st.write("One bathch is on its way to save")
                     #then save and empty our dictionary
                     self.save_dictionary(topic_to_buffer, output_folder)
-
-
             if not self.is_dict_empty(topic_to_buffer):
                 self.save_dictionary(topic_to_buffer, output_folder)
+
 
 
 
@@ -361,6 +366,8 @@ class PreprocessDump:
         
         
         while True:
+            print(len(to_be_processed_file_list))
+            print(index)
             if len(to_be_processed_file_list) <= index:
                 break
 
@@ -374,8 +381,8 @@ class PreprocessDump:
 
             else: 
                 self.preprocess_file(json_obj, to_be_processed_file_list[index], output_folder, max_mem)
-                index+=1
-        
+            index+=1
+
 
         
 
@@ -394,10 +401,8 @@ class PreprocessDump:
 
         self.stats_query_queue = stats_query_queue
         self.stats_response_queue = stats_response_queue
-
         self.preprocess_general_dump(json_obj=json_obj, dump_file_path=dump_file_path, max_mem=max_mem)
         
-        print("Exiting")
 
 
 #   PreprocessDump(json_file_path=sys.argv[1], dump_file_path=sys.argv[2],  max_mem=int(sys.argv[3]))
