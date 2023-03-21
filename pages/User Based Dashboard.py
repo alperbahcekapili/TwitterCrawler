@@ -40,7 +40,7 @@ if selection:
             "female" : 0,
             "unknown" : 0
         }
-        stances = {"AKP": 0, "CHP": 0, "IYI PARTI": 0}
+        stances = {"Unknown":0}
         ages = {}
         for i in range(0 ,100, 10):
             ages[f"{i}-{i+10}"] = 0
@@ -119,6 +119,9 @@ if "user_stats" not in st.session_state:
                 [userid, username, usertext ,userloc, userstance, userage, predicted_gender] = process_tweet(row ,option=selection, names= names, r = r)
 
                 genders[predicted_gender]+=1
+                #  add stance to dictionary if it does not exist
+                if userstance not in stances:
+                    stances[userstance] = 0
                 stances[userstance] += 1
                 ages[get_age_interval(interval = 10 ,age = userage)] += 1
 
@@ -204,8 +207,9 @@ if selection and root:
                         while(True):
                             if not st.session_state["stats_queue"].empty():
                                 response = st.session_state["stats_queue"].get(block=True, timeout=1)
-                                if "break" in response.keys():
-                                    break
+                                
+                                if "stance_user_dict" in response.keys():
+                                    stances = response["stance_user_dict"]
                                 if  "user_stance_dict" in response.keys():
                                     user_stance_dict = response["user_stance_dict"]
                                     st.session_state["user_stats"]["Stance Detected"] = "-"
@@ -214,7 +218,8 @@ if selection and root:
                                         st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance"] = user_stance_dict[usr]
                                         st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance Detected"] = "+"
                                     visualize_results(predicted_stats=st.session_state["predicted_stats"], statistics_pane=statistics_pane, user_stats=st.session_state["user_stats"])
-
+                                if "break" in response.keys():
+                                    break
 
 
 
