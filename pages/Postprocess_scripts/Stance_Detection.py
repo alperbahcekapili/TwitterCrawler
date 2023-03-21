@@ -145,9 +145,11 @@ class StanceDetection:
             detected_stances = set()
             detected_stance_counts = {}
 
+            # reset stance counts
             for stance in self.stance_user_dict.keys():
                 detected_stance_counts[stance] = 0
-
+            
+            # update stance counts before this iteration
             for retweeted_user in self.retweeted[i]:
                 if retweeted_user in self.user_stances and  self.user_stances[retweeted_user] != "Unknown":
                     detected_stance_counts[self.user_stances[retweeted_user]]+=1 
@@ -161,25 +163,32 @@ class StanceDetection:
                 max= {"stance": "", "count": -1}
                 second = {"stance": "", "count": -2}
                 for k,v in detected_stance_counts.items():
+
+                    
                     if max["count"]== -1:
                         max["stance"] = k
                         max["count"] = v
                         break
                 index = 0
+
+
                 for k,v in detected_stance_counts.items():
+                    
                     index+=1
                     if index == 1:
                         continue
+                    
                     if v > max["count"] and v > second["count"]:
                         second["stance"] = max["stance"]
                         second["count"] = max["count"]
                         max["count"] = v
                         max["stance"] = k
+                    
                     elif v > second["count"]:
                         second["count"] = v
                         second["stance"] = k
                        
-                if max["count"]-second["count"] >= 1     : # if warmup else 5
+                if max["count"]-second["count"] >= 5     : # if warmup else 5
                     return max["stance"]
                 
                 return "Unknown"

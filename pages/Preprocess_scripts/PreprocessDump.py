@@ -7,7 +7,9 @@ from datetime import datetime
 import signal
 import pandas as pd
 from multiprocessing import Queue
-import gzip 
+import gzip
+
+from pages.Postprocess_scripts.Functions import get_recursive_file_list 
 
 
 class PreprocessDump:
@@ -174,14 +176,19 @@ class PreprocessDump:
         
             for line in openfileobject:
                 try:
+                    # if we recieved a stat query then we put existing info to the queue
                     if not self.stats_query_queue.empty():
+                        
+                        # pop one query
                         query = self.stats_query_queue.get(block=True)
+
+                        # put our message into the query
                         self.stats_response_queue.put(self.create_counts_df(topic_to_buffer), block=True)
 
                 except Exception as e :
                     file = open("ErrorFile", "w")
                     file.write(str(e))
-                    file.write("Preprocessdump: preprocess_file")
+                    file.write("Preprocessdump: a problem occured in the queue between processes")
                     file.close()
 
                 # change here
@@ -199,24 +206,20 @@ class PreprocessDump:
 
                     file = open("ErrorFile", "w")
                     file.write(str(e))
-                    file.write("Preprocessdump: preprocess_file")
+                    file.write("Preprocessdump: could not parse tweet into json")
                     file.close()
                     continue
 
-                #alman tweet'leri icin ozel belirtec
-                
-                
+                # keeping track for the total tweets
                 total_tweet_counter+=1
 
                 #create new tweet object with necessary fields
                 try:
                     temp_dict = self.preprocess_downloaded(tweet_json)
-                    # if tweet_json["lang"] != "en":
-                    #     continue
                 except Exception as e:
                     file = open("ErrorFile", "w")
                     file.write(str(e))
-                    file.write("Preprocessdump: preprocess_file")
+                    file.write("Preprocessdump: a problem occured while processing json file")
                     file.close()
                     continue
 
@@ -230,12 +233,11 @@ class PreprocessDump:
                     "user_screen_name": self.remove_new_lines(tweet_json["user"]["screen_name"])
                 })
 
-                
-                # if lang of tweet and topic is not same we should break?
                 # decide which dump to insert
                 relevant_topics = self.what_isit_about(topics_json, tweet_json["text"])
                 if len(relevant_topics) == 0 or tweet_json["lang"] not in languages:
-                    # then we will save this tweet to other
+
+                    # then we will save this tweet to other, initialize these fields if empty
                     if "other" not in topic_to_buffer:
                         topic_to_buffer["other"] = {}
                     if tweet_json["lang"] not in topic_to_buffer["other"]:
@@ -247,12 +249,14 @@ class PreprocessDump:
 
                 for topic_index in relevant_topics:
                     
+                    # add them into each relevant topic, initialize if does not exist
                     if topics_json[topic_index]["name"] not in topic_to_buffer:
                         topic_to_buffer[topics_json[topic_index]["name"]] = {}
 
                     if  tweet_json["lang"] not in topic_to_buffer[topics_json[topic_index]["name"]]:
                         topic_to_buffer[topics_json[topic_index]["name"]][tweet_json["lang"]] = pd.DataFrame(columns=["created_at", "in_reply_to_user_id", "referenced_tweet", "ref_type", "text", "id", "source", "user_description", "user_created_at", "user_followers_count", "verified", "user_location", "user_id", "user_screen_name"])
                         print(f"New topic and lang revealed: {topics_json[topic_index]['name']} , {tweet_json['lang']} ")
+                    
                     try:
                         if None == topic_to_buffer[topics_json[topic_index]["name"]][tweet_json["lang"]]    :
                             topic_to_buffer[topics_json[topic_index]["name"]][tweet_json["lang"]] = pd.DataFrame(columns=["created_at", "in_reply_to_user_id", "referenced_tweet", "ref_type", "text", "id", "source", "user_description", "user_created_at", "user_followers_count", "verified", "user_location", "user_id", "user_screen_name"])
@@ -263,14 +267,13 @@ class PreprocessDump:
 
                     topic_to_buffer[topics_json[topic_index]["name"]][tweet_json["lang"]] = topic_to_buffer[topics_json[topic_index]["name"]][tweet_json["lang"]].append(temp_dict, ignore_index=True)
                     
-                    # st.write(topic_to_buffer[topics_json[topic_index]["name"]][topics_json[topic_index]["lang"]])
-
+                    
                 # we should not overflow memory so check if more memory available
                 should_quit = self.max_mem_reached(topic_to_buffer, max_size)
                 if should_quit:
-                    #st.write("One bathch is on its way to save")
                     #then save and empty our dictionary
                     self.save_dictionary(topic_to_buffer, output_folder)
+            
             if not self.is_dict_empty(topic_to_buffer):
                 self.save_dictionary(topic_to_buffer, output_folder)
 
@@ -351,37 +354,11 @@ class PreprocessDump:
         
 
         # Now we should preprocess files recursively
-        current_folder = dump_file_path
-        to_be_processed_file_list = os.listdir(current_folder)
-        templist = []
-        for i in range(len(to_be_processed_file_list)):
-            templist.append(os.path.join(current_folder , to_be_processed_file_list[i]))
-        to_be_processed_file_list = templist
+        to_be_processed_file_list = get_recursive_file_list(dump_file_path)
         
-        index = 0
-
-
-
-        
-        
-        
-        while True:
-            print(len(to_be_processed_file_list))
-            print(index)
-            if len(to_be_processed_file_list) <= index:
-                break
-
-            isDir = os.path.isdir(to_be_processed_file_list[index])
-            if isDir: 
-                new_file_list = os.listdir(to_be_processed_file_list[index])
-                to_be_appended = list(map(lambda x  : os.path.join(to_be_processed_file_list[index], x), new_file_list))
-                to_be_processed_file_list.extend(to_be_appended)
-                to_be_processed_file_list.remove(to_be_processed_file_list[index])
-
-
-            else: 
-                self.preprocess_file(json_obj, to_be_processed_file_list[index], output_folder, max_mem)
-            index+=1
+        # Preprocess one by one
+        for file_path in to_be_processed_file_list:
+            self.preprocess_file(json_obj, file_path, output_folder, max_mem)
 
 
         
