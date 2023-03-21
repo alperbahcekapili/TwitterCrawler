@@ -7,5 +7,6 @@ nltk
 scikit-learn
 streamlit-aggrid
 geopy
+gzip
 folium
 streamlit_folium
