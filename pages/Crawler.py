@@ -48,41 +48,30 @@ base = os.getcwd()
 
 def thread_function(topics):
 
+    # it will save tweets each 10 crawling period
+    saving_period = 10
+    iteration = -1
     while True:
+
+        start_time = time.time()
+        iteration+=1
 
         if not started:
             break
 
-
-
-        start_time = time.time()
-
-
-        file_prefix =  "data"
-        # in data folder
-        mydir = os.path.join(os.getcwd(), file_prefix , datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-
-        file_prefix = os.path.join(file_prefix, mydir)
-        if not os.path.exists(file_prefix):
-            os.makedirs(file_prefix)
-        # create folder for given time
-
-        
-
         topic_count = len(topics)
-    
 
-
+        # create a dictionary which keys are topics and elements are tweet list
+        topic_dump_dict = {}
+        for topic in topics:
+            topic_dump_dict[topic] = []
+        
 
         for topic in topics:
 
 
             crawler_message.text(  f"Searching for:{topic}")
-            file_prefix = os.path.join(file_prefix, topic)
-
-            os.makedirs(file_prefix)
-            # create folder for each topic under given times folder
-
+            
 
             tweet_fields = ["attachments", "author_id", "context_annotations", "conversation_id", "created_at", "entities", "geo", "id", "in_reply_to_user_id", "lang", "public_metrics",   "possibly_sensitive", "referenced_tweets", "reply_settings", "source", "text", "withheld"]
             user_fields = ["created_at", "description", "entities", "id", "location", "name", "pinned_tweet_id", "profile_image_url", "protected", "public_metrics", "url", "username", "verified", "withheld"]
@@ -131,29 +120,37 @@ def thread_function(topics):
                 
                 dumps.append(temp)
 
+
+            # add to appropiate entry of dictionary
+            topic_dump_dict[topic].extend(dumps)
+
+        if iteration % saving_period == 0:
+
+            file_prefix =  "data"
+            # in data folder
+            mydir = os.path.join(os.getcwd(), file_prefix , datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+            file_prefix = os.path.join(file_prefix, mydir)
+            if not os.path.exists(file_prefix):
+                os.makedirs(file_prefix)
+            # create folder for given time
+
+            for topic in topic_dump_dict.keys():
+
+                # extend saving period        
+                with gzip.open(os.path.join(file_prefix, topic+".twitter_crawler.gz"), "wt") as f:
+                    out_str = json.dumps(topic_dump_dict[topic], ensure_ascii=False, default=str)
+                    out_str = out_str[1:-1]
+                    out_str = out_str.replace("}, ", "}\n")
+                    f.write(out_str)
             
-            with gzip.open(os.path.join(file_prefix, topic+".twitter_crawler.gz"), "wt") as f:
-                out_str = json.dumps(dumps, ensure_ascii=False, default=str)
-                out_str = out_str[1:-1]
-                out_str = out_str.replace("}, ", "}\n")
-                f.write(out_str)
-            # with gzip.open(os.path.join(file_prefix, topic+".twitter_crawler.gz"), "wb") as json_file:
-                
-            #     json_file.write(bytes(out_str, "utf-8"))
+                crawler_message.caption( f"file saved to {mydir}/{topic}")
 
-
-            crawler_message.caption( f"file saved to {mydir}/{topic}")
-
-
-            file_prefix = file_prefix[: file_prefix.rindex("/")]
-            # WARNING here may cause problems in windows machines
-
-            
-        file_prefix = file_prefix[: file_prefix.rindex("/")]
         exec_time = time.time() - start_time
-
-        crawler_message.caption( f"Sleeping for {5*topic_count-exec_time} seconds")
-        time.sleep(int((5*topic_count-exec_time)+1))
+        # 2 saniyede 1 istek atılabiliyor
+        seconds_per_req = 2
+        sleeping_time = int(seconds_per_req*topic_count-exec_time) + 1 
+        crawler_message.caption( f"Sleeping for {sleeping_time} seconds")
+        time.sleep(sleeping_time)
 
 
 

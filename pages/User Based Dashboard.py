@@ -12,20 +12,21 @@ import time
 import pandas as pd
 from redis.commands.json.path import Path
 import sys
+import gzip
 from pages.Postprocess_scripts.Random_Forest_Classifier import RFClassifier
 from pages.Postprocess_scripts.Stance_Detection import StanceDetection
-
 from pages.Preprocess_scripts.Functions import generate_abrs_object, process_tweet, try_new_locations, visualize_results
 sys.path.insert(1, os.path.join(os.getcwd(), 'pages/Postprocess_scripts'))
 
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 
+r = ""
+# change here after redis integration
 
 
 import pydeck as pdk
 
 
-r = get_redis_client()
 st.title("User Based Dashboard")
 selection = st.selectbox("Select the loading format", ["","Dump", "Processed"])
 # get names dictionary for rule based gender prediction
@@ -70,35 +71,27 @@ if "user_stats" not in st.session_state:
         index = 0
         start_time = time.time()
             
-        
-        
-        
         for index in range(len(to_be_processed_file_list)):        
-            dump_file = open(to_be_processed_file_list[index], "r")
-            while True:
+            with gzip.open(to_be_processed_file_list[index], "rt") as dump_file:
+            
                 count += 1
-                # Get next line from file
-                line = dump_file.readline()
+                # Get next line from filer
                 
-                # if line is empty
-                # end of file is reached
-                if not line:
-                    break
-
-                tweet = json.loads(line)
-                [userid, username, usertext ,userloc, userstance, userage, predicted_gender] = process_tweet(tweet ,option=selection, names= names, r = r)
-                genders[predicted_gender]+=1
-                stances[userstance] += 1
-                ages[get_age_interval(interval = 10 ,age = userage)] += 1
-                
-                if userid not in users:
-                    users.add(userid)
-                    user_stats.loc[len(user_stats.index)] = [userid, username, usertext ,userloc, userstance, userage, predicted_gender]                
+                for line in dump_file:
+                    tweet = json.loads(line)
+                    [userid, username, usertext ,userloc, userstance, userage, predicted_gender] = process_tweet(tweet ,option=selection, names= names, r = r)
+                    genders[predicted_gender]+=1
+                    # if users stance is not in stances then add it
+                    if userstance not in stances:
+                        stances[userstance] = 0
+                    stances[userstance] += 1
+                    ages[get_age_interval(interval = 10 ,age = userage)] += 1
+                    
+                    if userid not in users:
+                        users.add(userid)
+                        user_stats.loc[len(user_stats.index)] = [userid, username, usertext ,userloc, userstance, userage, predicted_gender]                
             predicted_stats = (stances, ages, genders)
             visualize_results(predicted_stats=(stances, ages, genders), statistics_pane=statistics_pane, user_stats=user_stats)
-
-
-
         st.write("--- total parsing in %s seconds ---" % (time.time() - start_time))
 
 

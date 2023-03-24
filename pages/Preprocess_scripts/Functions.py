@@ -55,10 +55,10 @@ def process_tweet(row, option: str, names: list, r ):
         userage = predict_age(usertext)
 
 
-        if 0 == r.exists(userid):
-            r.set(str(userid), row["text"])
-        else:
-            r.set(str(userid), "\n".join((r.get(userid).decode("utf-8"),row["text"])))
+        # if 0 == r.exists(userid):
+        #     r.set(str(userid), row["text"])
+        # else:
+        #     r.set(str(userid), "\n".join((r.get(userid).decode("utf-8"),row["text"])))
 
 
     else:
