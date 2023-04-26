@@ -64,19 +64,25 @@ class StanceDetection:
         
         for index, row in dataframe.iterrows():
 
-            reftype = row["ref_type"]
-            text = row["text"]
+            # means they have been read from csv
+            if "data" in row:
+                text = row["data"]["text"]
+                if  "RT" not in text:
+                    continue
+                referred_user = text.split("@")[1].split(":")[0]
+                username = row["user_screen_name"]
+            # means they come from user_stats list from st.session_state
+            elif "Username" in row:
+                text = row["Text"]
+                if  "RT" not in text:
+                    continue
+                referred_user = ""
+                try:
+                    referred_user = text.split("@")[1].split(":")[0]
+                except Exception as e:
+                    continue
+                username = row["Username"]
 
-            print(row)
-
-            if reftype != "retweet" and "RT" not in text:
-                continue
-
-            referred_user = text.split("@")[1].split(":")[0]
-
-
-            username = row["user_screen_name"]
-            
 
             """
             Master Users Control
@@ -121,9 +127,6 @@ class StanceDetection:
         print(self.stances)
         print(self.user_stances)
         print(self.retweeted)
-
-
-        #print(self.user_stances)
 
         for i in range(len(self.users)):
 
@@ -188,7 +191,9 @@ class StanceDetection:
                         second["count"] = v
                         second["stance"] = k
                        
-                if max["count"]-second["count"] >= 5     : # if warmup else 5
+                if warmup:
+                    return max["stance"]
+                elif max["count"]-second["count"] >= 3     : # if warmup else 5
                     return max["stance"]
                 
                 return "Unknown"
@@ -214,33 +219,6 @@ class StanceDetection:
                     self.stance_user_dict[new_stance].add(self.users[i])
                     # set individual stance
                     self.label[i] = new_stance
-                
-            
-                    
-            # if len(detected_stances) == 1:
-            #     # now we can set this user as stance as well
-            #     to_set_stance = detected_stances.pop()
-            #     if to_set_stance != current_stance:
-            #         changed_users += 1
-
-
-            #     # change older state
-            #     if current_stance != "Unknown":
-            #         self.stance_user_dict[current_stance].remove(self.users[i])
-
-            #     # add to set
-            #     self.stance_user_dict[to_set_stance].add(self.users[i])
-            #     # set individual stance
-            #     self.label[i] = to_set_stance
-
-
-            # # then we should set label as unknown
-            # elif len(detected_stances) > 1:
-
-            #     # change older state if was not already onknown
-            #     if current_stance != "Unknown":
-            #         self.stance_user_dict[current_stance].remove(self.users[i])
-            #         self.label[i] = "Unknown"
 
         print(self.users)
         print(self.label)
@@ -284,7 +262,7 @@ class StanceDetection:
                     self.user_stances[username] = stance
                     self.retweeted.append([])
 
-    def __init__(self, csv_root_path, stances_object, comm_queue):
+    def __init__(self, user_stats, stances_object, comm_queue):
         self.comm_queue = comm_queue
         self.stances = stances_object
 
@@ -308,34 +286,25 @@ class StanceDetection:
                 self.user_stances[username] = stance
                 self.label.append(stance)
             
-        all_files = self.get_to_be_processed_files(csv_root_path)
 
-        for file_path in all_files:
-            print("Opening file: ", file_path)
-            self.extract_users_retweets(pd.read_csv(file_path, lineterminator="\n"))
+            self.extract_users_retweets(user_stats)
             self.comm_queue.put({"retweeted_user":len(self.users)})
 
         
         print(self.users)
         print(self.retweeted)
 
-        # # parse all to get retweeted lists
-        # else:
-        #     # this parameter can be changed. it is not csv root path in this case
-        #     print("Loading from preexisting user-retweeted_users json file ")
-        #     self.load_preexisting_dict(csv_root_path)
-
+       
         iteration = 0
 
         # start iterations
         changed_users = 1001
-        while(changed_users > 3):
-
+        while(changed_users > 3 and iteration > 5):
             print(f"Starting iteration number: {iteration}")
             iteration+=1
             print("Start time: ", datetime.now())    
             start_time = time.time()
-            changed_users = self.one_iteration(warmup=iteration<3)
+            changed_users = self.one_iteration(warmup=iteration<5)
             print("Epoch execution time: ", time.time() - start_time)
             print("Total stance changes: ",changed_users)
 

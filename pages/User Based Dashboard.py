@@ -1,21 +1,23 @@
 from asyncio import sleep
-from multiprocessing import Process, Queue
+import streamlit as st
+import gzip
+import pandas as pd
+from zipfile import ZipFile
 
+from multiprocessing import Process, Queue
 from pages.Postprocess_scripts.Page__Location_Based_Stance_Detection import calculate_support_ratios
 from pages.Postprocess_scripts.Functions import generate_figure, get_age_interval, get_redis_client, predict_gender, get_recursive_file_list, read_stances
-import streamlit as st
 import json
 import random
 import os
 import redis
 import time
-import pandas as pd
 from redis.commands.json.path import Path
 import sys
-import gzip
 from pages.Postprocess_scripts.Random_Forest_Classifier import RFClassifier
 from pages.Postprocess_scripts.Stance_Detection import StanceDetection
-from pages.Preprocess_scripts.Functions import generate_abrs_object, process_tweet, try_new_locations, visualize_results
+from pages.Preprocess_scripts.Functions import generate_abrs_object, process_tweet, try_new_locations, visualize_results, zip_open
+import ast
 sys.path.insert(1, os.path.join(os.getcwd(), 'pages/Postprocess_scripts'))
 
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
@@ -25,10 +27,12 @@ r = ""
 
 
 import pydeck as pdk
-
+from io import TextIOWrapper
 
 st.title("User Based Dashboard")
 selection = st.selectbox("Select the loading format", ["","Dump", "Processed"])
+
+
 # get names dictionary for rule based gender prediction
 names = None
 if selection:
@@ -53,33 +57,56 @@ buttons_pane = st.empty()
 statistics_pane = st.empty()
 predicted_stats = None
 
-
+progress_bar = st.empty()
 
 
 if "user_stats" not in st.session_state:
-        
-    
-
     if selection == "Dump" and root:
-
-        
         users = set()
-        count = 0
+        line_count = 0
+        file_count = 0
 
         # Now we should preprocess files recursively
         to_be_processed_file_list= get_recursive_file_list(root)
         index = 0
         start_time = time.time()
             
-        for index in range(len(to_be_processed_file_list)):        
-            with gzip.open(to_be_processed_file_list[index], "rt") as dump_file:
+        for index in range(len(to_be_processed_file_list)):      
+
+            dump_file = None
+            if   to_be_processed_file_list[index].endswith("gzip"):
+                dump_file = gzip.open(to_be_processed_file_list[index], "rt")
+            elif to_be_processed_file_list[index].endswith("zip"):
+                dump_file = zip_open(to_be_processed_file_list[index])
             
-                count += 1
+            if dump_file is None:
+                raise Exception("File format not accepted...")
+            with dump_file:
                 # Get next line from filer
-                
+                file_count += 1
                 for line in dump_file:
-                    tweet = json.loads(line)
-                    [userid, username, usertext ,userloc, userstance, userage, predicted_gender] = process_tweet(tweet ,option=selection, names= names, r = r)
+                    
+                    line_count += 1
+                    if line_count % 100 == 0:
+                        with progress_bar.container():
+                            st.text("Tweets read: " + str(line_count) + ", total files opened:  "+ str(file_count)) 
+
+                    tweet = None
+                    try:
+                        tweet = ast.literal_eval(line)
+                    except Exception as e:
+                        print("A problem occured during loading following line: \n")
+                        print(line)
+                        print(e)
+                    
+                    if tweet is None: 
+                        continue
+                    try:
+                        result = process_tweet(tweet ,option=selection, names= names, r = r)
+                    except Exception as e:
+                        print("A problem occured during processing following tweet...\n" + str(tweet))
+                        continue
+                    [userid, username, usertext ,userloc, userstance, userage, predicted_gender] = result
                     genders[predicted_gender]+=1
                     # if users stance is not in stances then add it
                     if userstance not in stances:
@@ -110,7 +137,6 @@ if "user_stats" not in st.session_state:
                 count += 1
 
                 [userid, username, usertext ,userloc, userstance, userage, predicted_gender] = process_tweet(row ,option=selection, names= names, r = r)
-
                 genders[predicted_gender]+=1
                 #  add stance to dictionary if it does not exist
                 if userstance not in stances:
@@ -121,7 +147,11 @@ if "user_stats" not in st.session_state:
                 if userid not in users:
                     users.append(userid)
                     user_stats.loc[len(user_stats.index)] = [userid, username, usertext ,userloc, userstance, userage, predicted_gender]
-
+                else:
+                    old_ar = user_stats.loc[len(user_stats.index), 2]
+                    old_ar.append(usertext)
+                    user_stats.loc[len(user_stats.index),2] = old_ar
+                    
             predicted_stats = (stances, ages, genders)  
             visualize_results(predicted_stats=(stances, ages, genders), statistics_pane=statistics_pane, user_stats=user_stats)
 
@@ -138,13 +168,6 @@ if "user_stats" not in st.session_state:
 else:
     visualize_results(predicted_stats=st.session_state["predicted_stats"], statistics_pane=statistics_pane, user_stats=st.session_state["user_stats"])
     
-
-
-
-
-
-
-
 
 # # stats part
 if selection and root:
@@ -193,7 +216,7 @@ if selection and root:
                     if tweets_file_path:
                         st.info("Starting Process...")
                         st.session_state["stats_queue"] = Queue(1000)
-                        st.session_state["preprocess_process"] =  Process(target=StanceDetection, args=(tweets_file_path, stances, st.session_state["stats_queue"]))
+                        st.session_state["preprocess_process"] =  Process(target=StanceDetection, args=(st.session_state["user_stats"], stances, st.session_state["stats_queue"]))
                         st.session_state["preprocess_process"].start()
                         stats = st.empty()
                         st.session_state.pop("Retweet_Based")
@@ -250,24 +273,6 @@ if selection and root:
                                 st.session_state.pop("stats_queue")
                                 st.session_state.pop("out_queue")
                                 break
-
-                            
-                            # if  "user_stance_dict" in response.keys():
-                            #     user_stance_dict = response["user_stance_dict"]
-                            #     st.session_state["user_stats"]["Stance Detected"] = "-"
-                            #     for usr in user_stance_dict.keys():
-                            #         # update this user's stance
-                            #         st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance"] = user_stance_dict[usr]
-                            #         st.session_state["user_stats"].loc[st.session_state["user_stats"]["Username"] == usr, "Stance Detected"] = "+"
-                            #     visualize_results(predicted_stats=st.session_state["predicted_stats"], statistics_pane=statistics_pane, user_stats=st.session_state["user_stats"])
-                                
-
-
-
-
-
-
-
 
 
         with col3:
@@ -348,10 +353,6 @@ if selection and root:
             st.title("Gender Prediction")
 
     if "Loc_Information" in st.session_state:
-        # map = folium.Map( scrollWheelZoom = False, dragging=False)
-        # st_map = st_folium(map, width=700, height = 400)
-                    
-                    
 
         chart_data = st.session_state["Loc_List"]
         
@@ -389,16 +390,10 @@ if selection and root:
                     get_text="stance",
                     get_size=36,
                     get_color=[146, 121, 81],
-                    # get_angle=0,
-                    # Note that string constants in pydeck are explicitly passed as strings
-                    # This distinguishes them from columns in a data set
-                    # get_text_anchor="middle",
-                    # get_alignment_baseline="center",
                 )
             ]
         ))
         
-        # st.map(pd.DataFrame.from_dict(st.session_state["Loc_List"]))
                     
                             
         

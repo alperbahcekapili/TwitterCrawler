@@ -1,5 +1,8 @@
 
+import gzip
+from io import TextIOWrapper
 from multiprocessing import Process, Queue
+from zipfile import ZipFile
 from pages.Postprocess_scripts.Functions import generate_figure, get_redis_client, predict_age, predict_gender, get_recursive_file_list, predict_stance
 import streamlit as st
 import random
@@ -13,6 +16,23 @@ sys.path.insert(1, os.path.join(os.getcwd(), 'pages/Postprocess_scripts'))
 
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 
+
+def zip_open(filename):
+    """Wrapper function that for zipfiles."""
+    with ZipFile(filename) as zipfin:
+        for filename in zipfin.namelist():
+            return TextIOWrapper(zipfin.open(filename))
+
+def get_line_count(file_path):
+    if file_path.endswith("gzip"):
+        dump_file = gzip.open(file_path, "rt")
+    elif file_path.endswith("zip"):
+        dump_file = zip_open(file_path)
+    else:
+        dump_file = open(file_path, "r")
+    return len(dump_file.readlines())
+
+    
 
 def process_tweet(row, option: str, names: list, r ):
 
@@ -37,16 +57,19 @@ def process_tweet(row, option: str, names: list, r ):
 
 
     elif option == "Dump":
-
-        username = row["user"]["screen_name"]
-        userid = row["user"]["id"]
-        userloc = row["user"]["location"]
+        author = row["includes"]["users"][0]
+        username = author["username"]
+        userid = author["id"]
+        if "location" in author:
+            userloc = author["location"]
+        else:
+            userloc = ""
 
         # update gender statistics
-        predicted_gender = predict_gender(names ,username)        
-        
+        #predicted_gender = predict_gender(names ,username)        
+        predicted_gender = "unknown"
         # text
-        usertext = row["text"]
+        usertext = row["data"]["text"]
 
         # update stance statistics
         userstance = predict_stance(usertext)
