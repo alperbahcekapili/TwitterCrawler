@@ -145,10 +145,6 @@ def try_new_locations(abrs):
 
 
 
-
-
-
-
 from datetime import datetime
 def visualize_results(statistics_pane, user_stats, predicted_stats):
 
@@ -162,7 +158,8 @@ def visualize_results(statistics_pane, user_stats, predicted_stats):
         gb.configure_side_bar() #Add a sidebar
         #gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
         gridOptions = gb.build()
-
+        custom_css ={"--ag-widget-container-vertical-padding":"100px",
+                     "--ag-cell-widget-spacing":"100px"}
 
         if "user_stats" not in st.session_state:
 
